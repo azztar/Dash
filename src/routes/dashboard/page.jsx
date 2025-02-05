@@ -1,4 +1,4 @@
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Sector, Cell } from "recharts";
 
 import { useTheme } from "@/hooks/use-theme";
 
@@ -6,7 +6,35 @@ import { overviewData, recentSalesData, topProducts } from "@/constants";
 
 import { Footer } from "@/layouts/footer";
 
-import { CreditCard, DollarSign, Package, PencilLine, Star, Trash, TrendingUp, Users } from "lucide-react";
+import { CreditCard, Dam, Wind, PencilLine, Star, Trash, TrendingUp, RollerCoaster } from "lucide-react";
+
+const data = [
+    { name: "Group A", value: 400 },
+    { name: "Group B", value: 300 },
+    { name: "Group C", value: 300 },
+    { name: "Group D", value: 200 },
+];
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+
+const RADIAN = Math.PI / 180;
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+        <text
+            x={x}
+            y={y}
+            fill="white"
+            textAnchor={x > cx ? "start" : "end"}
+            dominantBaseline="central"
+        >
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+    );
+};
 
 const DashboardPage = () => {
     const { theme } = useTheme();
@@ -18,9 +46,9 @@ const DashboardPage = () => {
                 <div className="card">
                     <div className="card-header">
                         <div className="w-fit rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                            <Package size={26} />
+                            <Wind size={26} />
                         </div>
-                        <p className="card-title">Total Products</p>
+                        <p className="card-title">PM10</p>
                     </div>
                     <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                         <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">25,154</p>
@@ -33,9 +61,9 @@ const DashboardPage = () => {
                 <div className="card">
                     <div className="card-header">
                         <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                            <DollarSign size={26} />
+                            <Dam size={26} />
                         </div>
-                        <p className="card-title">Total Paid Orders</p>
+                        <p className="card-title">CO</p>
                     </div>
                     <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                         <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">$16,000</p>
@@ -48,9 +76,9 @@ const DashboardPage = () => {
                 <div className="card">
                     <div className="card-header">
                         <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                            <Users size={26} />
+                            <RollerCoaster size={26} />
                         </div>
-                        <p className="card-title">Total Customers</p>
+                        <p className="card-title">SO2</p>
                     </div>
                     <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                         <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">15,400k</p>
@@ -65,7 +93,7 @@ const DashboardPage = () => {
                         <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                             <CreditCard size={26} />
                         </div>
-                        <p className="card-title">Sales</p>
+                        <p className="card-title">NO2</p>
                     </div>
                     <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                         <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">12,340</p>
@@ -79,7 +107,7 @@ const DashboardPage = () => {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7">
                 <div className="card col-span-1 md:col-span-2 lg:col-span-4">
                     <div className="card-header">
-                        <p className="card-title">Overview</p>
+                        <p className="card-title">Resumen</p>
                     </div>
                     <div className="card-body p-0">
                         <ResponsiveContainer
@@ -147,32 +175,40 @@ const DashboardPage = () => {
                 </div>
                 <div className="card col-span-1 md:col-span-2 lg:col-span-3">
                     <div className="card-header">
-                        <p className="card-title">Recent Sales</p>
+                        <p className="card-title">Porcentajes</p>
                     </div>
                     <div className="card-body h-[300px] overflow-auto p-0">
-                        {recentSalesData.map((sale) => (
-                            <div
-                                key={sale.id}
-                                className="flex items-center justify-between gap-x-4 py-2 pr-2"
+                        <ResponsiveContainer
+                            width="100%"
+                            height="100%"
+                        >
+                            <PieChart
+                                width={400}
+                                height={400}
                             >
-                                <div className="flex items-center gap-x-4">
-                                    <img
-                                        src={sale.image}
-                                        alt={sale.name}
-                                        className="size-10 flex-shrink-0 rounded-full object-cover"
-                                    />
-                                    <div className="flex flex-col gap-y-2">
-                                        <p className="font-medium text-slate-900 dark:text-slate-50">{sale.name}</p>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">{sale.email}</p>
-                                    </div>
-                                </div>
-                                <p className="font-medium text-slate-900 dark:text-slate-50">${sale.total}</p>
-                            </div>
-                        ))}
+                                <Pie
+                                    data={data}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={renderCustomizedLabel}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {data.map((entry, index) => (
+                                        <Cell
+                                            key={`cell-${index}`}
+                                            fill={COLORS[index % COLORS.length]}
+                                        />
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>
-            <div className="card">
+            {/*}  <div className="card">
                 <div className="card-header">
                     <p className="card-title">Top Orders</p>
                 </div>
@@ -236,7 +272,7 @@ const DashboardPage = () => {
                         </table>
                     </div>
                 </div>
-            </div>
+            </div>*/}
             <Footer />
         </div>
     );

@@ -32,31 +32,32 @@ export const navbarLinks = [
                 icon: Users,
                 path: "/clientes",
             },
-            {
+            /*  {
                 label: "Clientes Nuevos",
                 icon: UserPlus,
                 path: "/clientes_nuevos",
-            },
+            },*/
         ],
     },
     {
         title: "Servicios",
         links: [
             {
+                label: "Análisis aire",
+                icon: PackagePlus,
+                path: "/analisis_aire",
+            },
+            /*  {
                 label: "Servicios",
                 icon: Package,
                 path: "/servicios",
-            },
-            {
-                label: "Análisis aire",
-                icon: PackagePlus,
-                path: "/new-product",
             },
             {
                 label: "Análisis Ruido",
                 icon: ShoppingBag,
                 path: "/inventory",
             },
+            */
         ],
     },
     {

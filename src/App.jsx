@@ -3,7 +3,11 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/theme-context";
 import Layout from "@/routes/layout";
 import DashboardPage from "@/routes/dashboard/page";
-import AnalisisPage from "./routes/analisis/page"; // Importa la nueva página
+import AnalisisPage from "./routes/analisis/page";
+import ReportsPage from "./routes/Archivos/page";
+import AirePage from "./routes/aire/page";
+import AdminPage from "./routes/adminpage/page";
+import SettingsPage from "./routes/settingspage/page";
 
 function App() {
     const router = createBrowserRouter([
@@ -17,35 +21,36 @@ function App() {
                 },
                 {
                     path: "analisis",
-                    element: <AnalisisPage />, // Usa la nueva página aquí
+                    element: <AnalisisPage />,
                 },
                 {
                     path: "informe",
-                    element: <h1 className="title">Informe</h1>,
+                    element: <ReportsPage />,
                 },
                 {
                     path: "clientes",
-                    element: <h1 className="title">Clientes</h1>,
+                    element: <AdminPage />,
                 },
                 {
                     path: "clientes_nuevos",
                     element: <h1 className="title">Clientes Nuevos</h1>,
                 },
+
                 {
-                    path: "servicios",
-                    element: <h1 className="title">Products</h1>,
+                    path: "analisis_aire",
+                    element: <AirePage />,
                 },
-                {
-                    path: "new-product",
-                    element: <h1 className="title">New Product</h1>,
-                },
-                {
+                /* {
                     path: "inventory",
                     element: <h1 className="title">Inventory</h1>,
                 },
+                                {
+                    path: "servicios",
+                    element: <h1 className="title">Products</h1>,
+                },*/
                 {
                     path: "configuracion",
-                    element: <h1 className="title">Configuración</h1>,
+                    element: <SettingsPage />,
                 },
             ],
         },
