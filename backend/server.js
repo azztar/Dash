@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const sequelize = require("./config/db.config");
 const Test = require("./models/Test"); // Importa el modelo de prueba
+const testRoutes = require("./routes/testRoutes");
 
 const app = express();
 
@@ -25,6 +26,11 @@ sequelize
         console.error("Error al conectar a MySQL:", err);
     });
 
+// Ruta raíz
+app.get("/", (req, res) => {
+    res.send("Backend funcionando correctamente");
+});
+
 // Ruta de prueba
 app.get("/api/test", async (req, res) => {
     try {
@@ -35,7 +41,7 @@ app.get("/api/test", async (req, res) => {
         res.status(500).json({ success: false, message: "Error al consultar la base de datos." });
     }
 });
-
+app.use("/api/test", testRoutes);
 // Servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

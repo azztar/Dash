@@ -8,6 +8,7 @@ import ReportsPage from "./routes/Archivos/page";
 import AirePage from "./routes/aire/page";
 import AdminPage from "./routes/adminpage/page";
 import SettingsPage from "./routes/settingspage/page";
+import TestPage from "./routes/TestPage";
 
 function App() {
     const router = createBrowserRouter([
@@ -51,6 +52,10 @@ function App() {
                 {
                     path: "configuracion",
                     element: <SettingsPage />,
+                },
+                {
+                    path: "test",
+                    element: <TestPage />,
                 },
             ],
         },
