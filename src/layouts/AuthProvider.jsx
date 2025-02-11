@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
 
     const value = {
         user,
-        isAuthenticated: !!user, // Define si el usuario está autenticado
+        isAuthenticated: !!user,
         login,
         logout,
         loading,

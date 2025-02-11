@@ -6,8 +6,14 @@ exports.login = async (req, res) => {
     try {
         const { nit, password } = req.body;
 
+        // Agregar logs para depuración
+        console.log("Datos recibidos:", { nit, password });
+
         // Buscar usuario por NIT
         const user = await User.findOne({ where: { nit } });
+
+        console.log("Usuario encontrado:", user);
+
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -16,7 +22,10 @@ exports.login = async (req, res) => {
         }
 
         // Verificar contraseña
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await bcrypt.compare(password, user.contrasena); // Cambiado a 'contrasena'
+
+        console.log("Resultado de comparación:", isMatch);
+
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
@@ -25,15 +34,22 @@ exports.login = async (req, res) => {
         }
 
         // Generar token JWT
-        const token = jwt.sign({ userId: user.id, nit: user.nit }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const token = jwt.sign(
+            {
+                userId: user.id_usuario, // Cambiado a 'id_usuario'
+                nit: user.nit,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" },
+        );
 
         res.json({
             success: true,
             token,
             user: {
-                id: user.id,
+                id: user.id_usuario, // Cambiado a 'id_usuario'
                 nit: user.nit,
-                name: user.name,
+                name: user.nombre_usuario, // Cambiado a 'nombre_usuario'
                 email: user.email,
             },
         });

@@ -17,43 +17,36 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         try {
-            // Accede a la variable de entorno correctamente
-            const API_URL = process.env.REACT_APP_API_URL;
+            const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-            if (!API_URL) {
-                throw new Error("La URL del backend no está definida.");
-            }
+            console.log("Enviando datos:", { nit, password });
 
-            const response = await fetch(`${API_URL}/login`, {
+            const response = await fetch(`${API_URL}/auth/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ nit, password }),
+                body: JSON.stringify({
+                    nit,
+                    password, // Esto se enviará como 'password' al backend
+                }),
             });
 
+            const data = await response.json();
+
+            console.log("Respuesta del servidor:", data);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Credenciales incorrectas");
+                throw new Error(data.message || "Error al iniciar sesión");
             }
 
-            const data = await response.json();
-            console.log("Inicio de sesión exitoso:", data);
-
+            // Guardar el token y redirigir
             localStorage.setItem("token", data.token);
             window.location.href = "/dashboard";
         } catch (error) {
-            console.error("Error al iniciar sesión:", error.message);
-
-            if (error.message === "La URL del backend no está definida.") {
-                alert("Error de configuración: La URL del backend no está definida.");
-            } else if (error.message.includes("Failed to fetch")) {
-                alert("No se pudo conectar al servidor. Verifica que el backend esté ejecutándose.");
-            } else {
-                alert(error.message || "Credenciales incorrectas o error del servidor.");
-            }
+            console.error("Error al iniciar sesión:", error);
+            alert(error.message || "Error al iniciar sesión");
         }
     };
 
