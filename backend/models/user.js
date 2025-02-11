@@ -1,11 +1,16 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db.config");
+const bcrypt = require("bcryptjs");
 
 const User = sequelize.define("User", {
-    googleId: {
+    nit: {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
+    },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false,
     },
     email: {
         type: DataTypes.STRING,
@@ -14,8 +19,14 @@ const User = sequelize.define("User", {
     },
     name: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
     },
+});
+
+// Método para hashear la contraseña antes de guardar
+User.beforeCreate(async (user) => {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(user.password, salt);
 });
 
 module.exports = User;

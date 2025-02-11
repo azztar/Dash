@@ -1,49 +1,81 @@
-// backend/controllers/authController.js
-const axios = require("axios");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
-exports.googleAuth = async (req, res) => {
-    const { code } = req.body;
-
+exports.login = async (req, res) => {
     try {
-        // Intercambiar el código por un token de acceso
-        const { data } = await axios.post(
-            "https://oauth2.googleapis.com/token",
-            {
-                code,
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                redirect_uri: process.env.REDIRECT_URI,
-                grant_type: "authorization_code",
-            },
-            {
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            },
-        );
+        const { nit, password } = req.body;
 
-        const { access_token } = data;
-
-        // Obtener información del usuario
-        const userInfo = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
-            headers: { Authorization: `Bearer ${access_token}` },
-        });
-
-        const { email, name, sub } = userInfo.data;
-
-        // Buscar o crear el usuario en la base de datos
-        let user = await User.findOne({ googleId: sub });
+        // Buscar usuario por NIT
+        const user = await User.findOne({ where: { nit } });
         if (!user) {
-            user = new User({ googleId: sub, email, name });
-            await user.save();
+            return res.status(401).json({
+                success: false,
+                message: "Usuario no encontrado",
+            });
+        }
+
+        // Verificar contraseña
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: "Contraseña incorrecta",
+            });
         }
 
         // Generar token JWT
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const token = jwt.sign({ userId: user.id, nit: user.nit }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-        res.json({ success: true, token, user });
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                nit: user.nit,
+                name: user.name,
+                email: user.email,
+            },
+        });
     } catch (error) {
-        console.error("Error en la autenticación:", error);
-        res.status(500).json({ success: false, message: "Error en la autenticación." });
+        console.error("Error en login:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error en el servidor",
+        });
+    }
+};
+
+exports.register = async (req, res) => {
+    try {
+        const { nit, password, email, name } = req.body;
+
+        // Verificar si el usuario ya existe
+        const existingUser = await User.findOne({ where: { nit } });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: "El NIT ya está registrado",
+            });
+        }
+
+        // Crear nuevo usuario
+        const user = await User.create({
+            nit,
+            password,
+            email,
+            name,
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Usuario registrado exitosamente",
+        });
+    } catch (error) {
+        console.error("Error en registro:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error en el servidor",
+        });
     }
 };
