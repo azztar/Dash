@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { ArrowRightIcon } from "lucide-react";
 import AuthLayout from "../components/AuthLayout";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 
 const Login = () => {
     const [nit, setNit] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -18,35 +22,13 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-            console.log("Enviando datos:", { nit, password });
-
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    nit,
-                    password, // Esto se enviará como 'password' al backend
-                }),
-            });
-
-            const data = await response.json();
-
-            console.log("Respuesta del servidor:", data);
-
-            if (!response.ok) {
-                throw new Error(data.message || "Error al iniciar sesión");
+            const success = await login({ nit, password });
+            if (success) {
+                navigate("/dashboard");
             }
-
-            // Guardar el token y redirigir
-            localStorage.setItem("token", data.token);
-            window.location.href = "/dashboard";
         } catch (error) {
             console.error("Error al iniciar sesión:", error);
-            alert(error.message || "Error al iniciar sesión");
+            alert(error.response?.data?.message || "Error al iniciar sesión");
         }
     };
 

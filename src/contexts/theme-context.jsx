@@ -1,52 +1,36 @@
-import { createContext, useEffect, useState } from "react";
-
+import { createContext, useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 
-const initialState = {
-    theme: "system",
+export const ThemeProviderContext = createContext({
+    theme: "light",
     setTheme: () => null,
-};
+});
 
-export const ThemeProviderContext = createContext(initialState);
-
-export function ThemeProvider({ children, defaultTheme = "system", storageKey = "vite-ui-theme", ...props }) {
-    const [theme, setTheme] = useState(() => localStorage.getItem(storageKey) || defaultTheme);
+export function ThemeProvider({ children, storageKey = "theme", defaultTheme = "light" }) {
+    const [theme, setTheme] = useState(() => {
+        const storedTheme = localStorage.getItem(storageKey);
+        return storedTheme || defaultTheme;
+    });
 
     useEffect(() => {
         const root = window.document.documentElement;
-
         root.classList.remove("light", "dark");
-
-        if (theme === "system") {
-            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-
-            root.classList.add(systemTheme);
-            return;
-        }
-
         root.classList.add(theme);
-    }, [theme]);
+        localStorage.setItem(storageKey, theme);
+    }, [theme, storageKey]);
 
     const value = {
         theme,
-        setTheme: (theme) => {
-            localStorage.setItem(storageKey, theme);
+        setTheme: useCallback((theme) => {
             setTheme(theme);
-        },
+        }, []),
     };
 
-    return (
-        <ThemeProviderContext.Provider
-            {...props}
-            value={value}
-        >
-            {children}
-        </ThemeProviderContext.Provider>
-    );
+    return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>;
 }
 
 ThemeProvider.propTypes = {
-    children: PropTypes.node,
-    defaultTheme: PropTypes.string,
+    children: PropTypes.node.isRequired,
     storageKey: PropTypes.string,
+    defaultTheme: PropTypes.string,
 };

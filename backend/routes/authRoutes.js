@@ -1,19 +1,16 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-const router = express.Router();
-
-// Endpoint para iniciar sesión
 router.post("/login", async (req, res) => {
     try {
         const { nit, password } = req.body;
-        console.log("Datos recibidos:", { nit, password });
 
-        // Buscar usuario por NIT
+        console.log("Intento de login:", { nit, password });
+
         const user = await User.findOne({ where: { nit } });
-        console.log("Usuario encontrado:", user);
 
         if (!user) {
             return res.status(401).json({
@@ -22,29 +19,18 @@ router.post("/login", async (req, res) => {
             });
         }
 
-        // Verificar contraseña
-        const isMatch = password === user.contrasena; // Comparación temporal
-        console.log("Resultado de comparación:", isMatch);
+        const isValidPassword = await bcrypt.compare(password, user.contrasena);
 
-        if (!isMatch) {
+        if (!isValidPassword) {
             return res.status(401).json({
                 success: false,
                 message: "Contraseña incorrecta",
             });
         }
 
-        // Generar token JWT
-        const token = jwt.sign(
-            {
-                userId: user.id_usuario,
-                nit: user.nit,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: "1h" },
-        );
+        const token = jwt.sign({ userId: user.id_usuario, nit: user.nit }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-        // Enviar respuesta exitosa
-        return res.json({
+        res.json({
             success: true,
             token,
             user: {
@@ -57,9 +43,52 @@ router.post("/login", async (req, res) => {
         });
     } catch (error) {
         console.error("Error en login:", error);
-        return res.status(500).json({
+        res.status(500).json({
             success: false,
             message: "Error en el servidor",
+        });
+    }
+});
+
+// Ruta para validar el token
+router.get("/validate-token", async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No se proporcionó token",
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findOne({
+            where: { id_usuario: decoded.userId },
+        });
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Usuario no encontrado",
+            });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id_usuario,
+                nit: user.nit,
+                nombre: user.nombre_usuario,
+                email: user.email,
+                rol: user.rol,
+            },
+        });
+    } catch (error) {
+        console.error("Error al validar token:", error);
+        res.status(401).json({
+            success: false,
+            message: "Token inválido o expirado",
         });
     }
 });

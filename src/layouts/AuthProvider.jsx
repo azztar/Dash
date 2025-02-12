@@ -1,56 +1,84 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
-// Crea el contexto
 export const AuthContext = createContext();
 
-// Hook personalizado para usar el contexto
-export function useAuth() {
-    return useContext(AuthContext);
-}
-
-// Proveedor de autenticación
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                if (token) {
-                    const response = await axios.get("http://localhost:5000/api/auth/validate-token", {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    setUser(response.data.user);
-                }
-            } catch (error) {
-                console.error("Error al verificar autenticación:", error);
-                localStorage.removeItem("token");
-            } finally {
-                setLoading(false);
-            }
-        };
-        checkAuth();
-    }, []);
+    const login = async (credentials) => {
+        try {
+            const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials);
 
-    const login = (token, userData) => {
-        localStorage.setItem("token", token);
-        setUser(userData);
+            if (response.data.success) {
+                const { token, user } = response.data;
+                localStorage.setItem("token", token);
+                localStorage.setItem("user", JSON.stringify(user));
+                setUser(user);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Error en login:", error);
+            throw error;
+        }
     };
 
     const logout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
     };
 
-    const value = {
-        user,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        loading,
+    const checkAuth = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/auth/validate-token`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (response.data.success) {
+                setUser(response.data.user);
+            } else {
+                logout();
+            }
+        } catch (error) {
+            console.error("Error al verificar autenticación:", error);
+            logout();
+        } finally {
+            setLoading(false);
+        }
     };
 
-    return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
-}
+    useEffect(() => {
+        checkAuth();
+    }, []);
+
+    const value = {
+        user,
+        loading,
+        login,
+        logout,
+        checkAuth,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export default AuthProvider;
+
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error("useAuth debe ser usado dentro de un AuthProvider");
+    }
+    return context;
+};

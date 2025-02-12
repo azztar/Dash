@@ -95,3 +95,43 @@ exports.register = async (req, res) => {
         });
     }
 };
+
+exports.validateToken = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No se proporcionó token",
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findOne({ where: { id_usuario: decoded.userId } });
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Usuario no encontrado",
+            });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id_usuario,
+                nit: user.nit,
+                nombre: user.nombre_usuario,
+                email: user.email,
+                rol: user.rol,
+            },
+        });
+    } catch (error) {
+        console.error("Error al validar token:", error);
+        res.status(401).json({
+            success: false,
+            message: "Token inválido o expirado",
+        });
+    }
+};

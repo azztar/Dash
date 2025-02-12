@@ -1,14 +1,49 @@
 import { forwardRef } from "react";
 import { NavLink } from "react-router-dom";
-
-import { navbarLinks } from "@/constants";
-
+import { LayoutDashboard, FileText, Wind, Users, Settings } from "lucide-react";
 import logoLight from "@/assets/logo-light.svg";
 import logoDark from "@/assets/logo-dark.svg";
-
 import { cn } from "@/utils/cn";
-
 import PropTypes from "prop-types";
+
+// Definir los enlaces de navegación
+const navbarLinks = [
+    {
+        title: "General",
+        links: [
+            {
+                label: "Dashboard",
+                path: "/dashboard",
+                icon: LayoutDashboard,
+            },
+            {
+                label: "Análisis",
+                path: "/analisis",
+                icon: FileText,
+            },
+        ],
+    },
+    {
+        title: "Gestión",
+        links: [
+            {
+                label: "Análisis Aire",
+                path: "/analisis_aire",
+                icon: Wind,
+            },
+            {
+                label: "Clientes",
+                path: "/clientes",
+                icon: Users,
+            },
+            {
+                label: "Configuración",
+                path: "/configuracion",
+                icon: Settings,
+            },
+        ],
+    },
+];
 
 export const Sidebar = forwardRef(({ collapsed }, ref) => {
     return (
@@ -65,3 +100,5 @@ Sidebar.displayName = "Sidebar";
 Sidebar.propTypes = {
     collapsed: PropTypes.bool,
 };
+
+export default Sidebar;
