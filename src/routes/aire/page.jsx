@@ -1,86 +1,219 @@
 // src/routes/AirePage/page.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"; // Importar componentes de Recharts
 import { Card } from "@tremor/react"; // Importar componentes de Tremor
 import { Dialog, Transition } from "@headlessui/react"; // Modal personalizado
-import { Fragment } from "react";
 import { useTheme } from "@/hooks/use-theme"; // Hook para manejar el tema
 import { Footer } from "@/layouts/footer"; // Pie de página
+import { useAuth } from "@/hooks/use-auth";
+import { airQualityService } from "@/services/airQualityService";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
-// Datos simulados de estaciones y mediciones
-const stations = [
-    { id: 1, name: "Estación Norte" },
-    { id: 2, name: "Estación Sur" },
-    { id: 3, name: "Estación Este" },
-    { id: 4, name: "Estación Oeste" },
-];
-
-// Datos simulados de muestras (18 muestras)
-const sampleData = [
-    {
-        muestra: "1.1",
-        fecha_hora_inicial: "2024/10/18 8:47",
-        tiempo_muestreo_minutos: 1441.2,
-        concentracion_pm10: 28.63,
-        u_pm10: 0.02,
-        u_pm10_factor_cobertura: 0.03,
-        norma_pm10_24_horas: 75.0,
-    },
-    {
-        muestra: "1.2",
-        fecha_hora_inicial: "2024/10/19 8:56",
-        tiempo_muestreo_minutos: 1412.4,
-        concentracion_pm10: 12.91,
-        u_pm10: 0.02,
-        u_pm10_factor_cobertura: 0.05,
-        norma_pm10_24_horas: 75.0,
-    },
-    {
-        muestra: "1.3",
-        fecha_hora_inicial: "2024/10/20 8:37",
-        tiempo_muestreo_minutos: 1438.2,
-        concentracion_pm10: 14.53,
-        u_pm10: 0.02,
-        u_pm10_factor_cobertura: 0.04,
-        norma_pm10_24_horas: 75.0,
-    },
-    // Agregar más muestras aquí...
-];
-
+// Paso 1: Definir el componente principal
 const AirePage = () => {
-    const { theme } = useTheme(); // Acceder al tema actual
-    const [selectedNorm, setSelectedNorm] = useState(""); // Norma seleccionada
-    const [selectedStation, setSelectedStation] = useState(null); // Estación seleccionada
-    const [isModalOpen, setIsModalOpen] = useState(false); // Estado del modal
-    const [data, setData] = useState([]); // Datos filtrados
+    const { theme } = useTheme();
+    const { user } = useAuth();
 
-    // Manejar la selección de la norma
+    // ----- ESTADOS -----
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Lista de estaciones, selección de estación y estado del modal
+    const [stations, setStations] = useState([]);
+    const [selectedStation, setSelectedStation] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Parámetro (norma) seleccionado
+    const [selectedNorm, setSelectedNorm] = useState(null);
+
+    // Fechas
+    //  Si usas DatePicker de rango, necesitarás startDate y endDate
+    //  Si usas DatePicker de solo mes/año, necesitarás selectedDate
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [availableDates, setAvailableDates] = useState([]);
+
+    // Datos mostrados en la tabla principal, la tabla de conformidad y el gráfico
+    const [data, setData] = useState(null);
+
+    // Mediciones disponibles (por ejemplo, para listarlas y seleccionar una)
+    const [medicionesDisponibles, setMedicionesDisponibles] = useState([]);
+    const [selectedMedicion, setSelectedMedicion] = useState(null);
+
+    // ----- EFECTOS -----
+
+    // Cargar estaciones al montar
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const stationsData = await airQualityService.getStations();
+                setStations(stationsData);
+            } catch (error) {
+                console.error("Error al cargar estaciones:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
+    }, []);
+
+    // ----- FUNCIONES DEL FLUJO -----
+
+    // 1. Selección de norma (parámetro)
     const handleNormSelect = (norm) => {
         setSelectedNorm(norm);
-        setIsModalOpen(true); // Abrir el modal para seleccionar la estación
+        setIsModalOpen(true); // Abrir modal para seleccionar estación
     };
 
-    // Manejar la selección de la estación
-    const handleStationSelect = (station) => {
-        setSelectedStation(station);
-        setIsModalOpen(false); // Cerrar el modal
+    // 2. Selección de estación
+    const handleStationSelect = async (station) => {
+        try {
+            setLoading(true);
+            setSelectedStation(station);
+            setIsModalOpen(false);
 
-        // Filtrar los datos según la estación y la norma seleccionada
-        const filteredData = sampleData.map((item) => ({
-            ...item,
-            fecha_hora_inicial: item.fecha_hora_inicial.split(" ")[0], // Solo la fecha para el gráfico
-        }));
-        setData(filteredData);
+            // Cargar mediciones de la estación (puedes filtrarlas luego por fecha)
+            const mediciones = await airQualityService.getMediciones(station.id_estacion);
+            setMedicionesDisponibles(mediciones);
+
+            // Opcional: cargar fechas disponibles para esa estación y norma
+            // Esto depende de tu backend. Ejemplo:
+            // const dates = await airQualityService.getAvailableDates(station.id_estacion, selectedNorm);
+            // setAvailableDates(dates);
+        } catch (error) {
+            console.error("Error:", error);
+            setError("Error al cargar los datos");
+        } finally {
+            setLoading(false);
+        }
     };
 
+    // 3. Selección de fecha (mes/año).
+    //    Si usas un DatePicker con showMonthYearPicker, capturas "date" y se lo pasas al backend
+    const handleDateSelect = async (date) => {
+        setSelectedDate(date);
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        if (selectedStation && selectedNorm && date) {
+            try {
+                setLoading(true);
+                const measurements = await airQualityService.getMeasurementsByDate(selectedStation.id_estacion, selectedNorm, date);
+                setData(measurements);
+            } catch (error) {
+                console.error("Error:", error);
+                setError("Error al cargar las mediciones");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    // 4. Visualización de datos (ejemplo de “rango de fechas” en lugar de mes/año)
+    //    Si deseas un rango, usas “startDate” y “endDate”.
+    const handleDateChange = async (dates) => {
+        const [start, end] = dates;
+        setStartDate(start);
+        setEndDate(end);
+
+        if (start && end && selectedStation && selectedNorm) {
+            try {
+                setLoading(true);
+                const measurements = await airQualityService.getMeasurements(selectedStation.id_estacion, selectedNorm, start, end);
+                setData(measurements);
+            } catch (error) {
+                console.error("Error:", error);
+                setError("Error al cargar los datos");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    // Manejar la selección de una medición específica
+    const handleMedicionSelect = (medicion) => {
+        setSelectedMedicion(medicion);
+        // Ejemplo: solo mostramos la medición seleccionada
+        setData([medicion]);
+    };
+
+    // ----- RENDERIZADO DE PARTES (TABLAS, GRÁFICAS, ETC.) -----
+
+    // Renderizado del selector de fechas (si usas mes/año o rango)
+    const renderDateSelector = () => (
+        <Card className="mb-6">
+            <h3 className="mb-4 text-lg font-semibold">Seleccionar Período</h3>
+            {/* Si solo quieres mes/año: */}
+            {/*
+            <DatePicker
+                selected={selectedDate}
+                onChange={handleDateSelect}
+                dateFormat="MM/yyyy"
+                showMonthYearPicker
+                className="w-full rounded-md border p-2"
+                includeDates={availableDates}
+                placeholderText="Seleccione Mes/Año"
+            />
+            */}
+
+            {/* Si quieres rango de fechas: */}
+            <DatePicker
+                selected={startDate}
+                onChange={handleDateChange}
+                startDate={startDate}
+                endDate={endDate}
+                selectsRange
+                inline
+                className="w-full rounded-md border p-2"
+                includeDates={availableDates}
+                placeholderText="Seleccione un rango de fechas"
+            />
+        </Card>
+    );
+
+    // Tabla de declaraciones de conformidad
+    const renderConformityTable = () => (
+        <Card className="mt-6">
+            <h3 className="mb-4 text-lg font-semibold">Declaración de Conformidad</h3>
+            <table className="w-full border-collapse">
+                <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-800">
+                        <th className="border p-2">Fecha</th>
+                        <th className="border p-2">Valor Medido</th>
+                        <th className="border p-2">Incertidumbre</th>
+                        <th className="border p-2">Valor Límite</th>
+                        <th className="border p-2">Conformidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {data &&
+                        data.map((item, index) => {
+                            const isConform = item.concentracion_pm10 + item.u_pm10_factor_cobertura < item.norma_pm10_24_horas;
+                            return (
+                                <tr
+                                    key={index}
+                                    className={isConform ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}
+                                >
+                                    <td className="border p-2">{new Date(item.fecha_hora_inicial).toLocaleDateString()}</td>
+                                    <td className="border p-2">{item.concentracion_pm10}</td>
+                                    <td className="border p-2">±{item.u_pm10_factor_cobertura}</td>
+                                    <td className="border p-2">{item.norma_pm10_24_horas}</td>
+                                    <td className="border p-2">{isConform ? "CONFORME" : "NO CONFORME"}</td>
+                                </tr>
+                            );
+                        })}
+                </tbody>
+            </table>
+        </Card>
+    );
+
+    // ----- RETURN PRINCIPAL -----
     return (
         <div className={`min-h-screen p-6 transition-colors ${theme === "light" ? "bg-slate-100" : "bg-slate-950"}`}>
-            {/* Título de la página */}
             <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-white">Calidad del Aire</h1>
 
-            {/* Tarjeta principal */}
             <Card className="mt-6 h-full w-full bg-white p-6 shadow-md dark:bg-gray-900">
-                {/* Selector de norma mediante tarjetas */}
+                {/* Selección de parámetro (tarjetas) */}
                 <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                     {["PM10", "PM2.5", "SO2", "NO2", "O3", "CO"].map((norm) => (
                         <Card
@@ -97,25 +230,27 @@ const AirePage = () => {
                     ))}
                 </div>
 
-                {/* Mostrar los datos filtrados */}
-                {data.length > 0 && (
+                {/* Selector de Fechas (rango o mes/año) solo si hay estación y norma */}
+                {selectedStation && selectedNorm && renderDateSelector()}
+
+                {/* Tabla de mediciones_aire + gráfico */}
+                {data && (
                     <>
-                        {/* Cuadro de datos estilo Excel */}
+                        {/* Tabla mediciones_aire */}
                         <Card className="mt-6 h-full w-full bg-white p-6 shadow-md dark:bg-gray-900">
                             <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
                                 Datos de la estación: {selectedStation?.name}
                             </h2>
-
                             <table className="w-full border-collapse border border-gray-300 text-left dark:border-gray-600 dark:text-white">
                                 <thead>
                                     <tr className="bg-slate-200 dark:bg-slate-800">
                                         <th className="border border-slate-300 p-2 dark:border-slate-700">MUESTRA</th>
                                         <th className="border border-slate-300 p-2 dark:border-slate-700">FECHA Y HORA INICIAL</th>
-                                        <th className="border border-slate-300 p-2 dark:border-slate-700">TIEMPO DEL MUESTREO EN MINUTOS</th>
+                                        <th className="border border-slate-300 p-2 dark:border-slate-700">TIEMPO DEL MUESTREO (min)</th>
                                         <th className="border border-slate-300 p-2 dark:border-slate-700">CONCENTRACIÓN PM10 (µg/m³)</th>
-                                        <th className="border border-slate-300 p-2 dark:border-slate-700">U PM10 (µg/m³)</th>
-                                        <th className="border border-slate-300 p-2 dark:border-slate-700">U PM10 CON FACTOR DE COBERTURA (k=2)</th>
-                                        <th className="border border-slate-300 p-2 dark:border-slate-700">NORMA PM10 24 HORAS (µg/m³)</th>
+                                        <th className="border border-slate-300 p-2 dark:border-slate-700">U (µg/m³)</th>
+                                        <th className="border border-slate-300 p-2 dark:border-slate-700">U Factor Cobertura (k=2)</th>
+                                        <th className="border border-slate-300 p-2 dark:border-slate-700">NORMA (µg/m³)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -137,7 +272,7 @@ const AirePage = () => {
                             </table>
                         </Card>
 
-                        {/* Gráfico en una tarjeta */}
+                        {/* Gráfico */}
                         <Card className="mt-6 h-full w-full bg-white p-6 shadow-md dark:bg-gray-900">
                             <h2 className="text-tremor-content dark:text-dark-tremor-content mb-4 text-lg font-semibold">
                                 Concentración PM10 vs Fecha
@@ -174,11 +309,37 @@ const AirePage = () => {
                                 </AreaChart>
                             </ResponsiveContainer>
                         </Card>
+
+                        {/* Tabla de conformidad */}
+                        {renderConformityTable()}
                     </>
                 )}
+
+                {/* Lista de mediciones disponibles para la estación seleccionada (si procede) */}
+                {selectedStation && (
+                    <div className="mt-6">
+                        <h3 className="mb-4 text-lg font-semibold">Mediciones Disponibles</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            {medicionesDisponibles.map((medicion) => (
+                                <button
+                                    key={medicion.id_medicion} // Asegúrate de que id_medicion sea único
+                                    onClick={() => handleMedicionSelect(medicion)}
+                                    className={`rounded-lg border p-4 ${
+                                        selectedMedicion?.id_medicion === medicion.id_medicion ? "border-blue-500 bg-blue-100" : "hover:bg-gray-50"
+                                    }`}
+                                >
+                                    <p className="font-medium">{medicion.fecha_formateada}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Mostrar datos de la medición individual si se desea */}
+                {selectedMedicion && data && <div className="mt-6">{/* Aquí puedes renderizar tableros, tablas adicionales, etc. */}</div>}
             </Card>
 
-            {/* Modal para seleccionar la estación */}
+            {/* Modal: Selección de estación */}
             <Transition
                 appear
                 show={isModalOpen}
@@ -222,11 +383,11 @@ const AirePage = () => {
                                     <ul className="mt-4">
                                         {stations.map((station) => (
                                             <li
-                                                key={station.id}
+                                                key={station.id_estacion}
                                                 className="cursor-pointer rounded-md p-2 text-gray-900 hover:bg-slate-200 dark:text-white dark:hover:bg-slate-700"
                                                 onClick={() => handleStationSelect(station)}
                                             >
-                                                {station.name}
+                                                {station.nombre_estacion}
                                             </li>
                                         ))}
                                     </ul>
@@ -239,6 +400,28 @@ const AirePage = () => {
 
             {/* Footer */}
             <Footer />
+        </div>
+    );
+};
+
+// Componentes auxiliares
+const StationCard = ({ station, onSelect }) => {
+    return (
+        <div
+            className="card cursor-pointer p-4"
+            onClick={() => onSelect(station)}
+        >
+            <h3 className="font-bold">{station.nombre_estacion}</h3>
+            <p className="text-sm text-gray-600">{station.ubicacion}</p>
+        </div>
+    );
+};
+
+const StationDetails = ({ station, measurements }) => {
+    return (
+        <div className="card p-4">
+            {/* ... mostrar detalles de la estación y/o mediciones ... */}
+            <h3 className="text-lg font-bold">{station.nombre_estacion}</h3>
         </div>
     );
 };

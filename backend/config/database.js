@@ -1,25 +1,25 @@
-const { Sequelize } = require("sequelize");
+const mysql = require("mysql2/promise");
 
-// Configuración de la base de datos
-const sequelize = new Sequelize(
-    process.env.DB_NAME, // Nombre de la base de datos
-    process.env.DB_USER, // Usuario de la base de datos
-    process.env.DB_PASSWORD, // Contraseña de la base de datos
-    {
-        host: process.env.DB_HOST, // Host de la base de datos
-        dialect: "mysql", // Cambia a "postgres" si usas PostgreSQL
-        logging: false, // Desactiva los logs de Sequelize si no los necesitas
-    },
-);
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    charset: "utf8mb4",
+});
 
-// Prueba la conexión a la base de datos
-sequelize
-    .authenticate()
-    .then(() => {
-        console.log("Conexión exitosa a la base de datos.");
+// Verificar la conexión
+pool.getConnection()
+    .then((connection) => {
+        console.log("Base de datos conectada exitosamente");
+        connection.release();
     })
     .catch((err) => {
-        console.error("Error al conectar a la base de datos:", err.message);
+        console.error("Error al conectar a la base de datos:", err);
     });
 
-module.exports = sequelize;
+module.exports = pool;

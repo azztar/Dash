@@ -1,34 +1,46 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const db = require("../config/database"); // Asegúrate de importar db
 
 router.post("/login", async (req, res) => {
     try {
         const { nit, password } = req.body;
+        console.log("Intento de login:", { nit });
 
-        console.log("Intento de login:", { nit, password });
+        const [users] = await db.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
 
-        const user = await User.findOne({ where: { nit } });
-
-        if (!user) {
+        if (!users || users.length === 0) {
+            console.log("Usuario no encontrado");
             return res.status(401).json({
                 success: false,
-                message: "Usuario no encontrado",
+                message: "NIT o contraseña incorrectos",
             });
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.contrasena);
+        const user = users[0];
+        console.log("Usuario encontrado:", { id: user.id_usuario, rol: user.rol });
 
-        if (!isValidPassword) {
+        const validPassword = await bcrypt.compare(password, user.contrasena);
+        console.log("Validación de contraseña:", validPassword);
+
+        if (!validPassword) {
             return res.status(401).json({
                 success: false,
-                message: "Contraseña incorrecta",
+                message: "NIT o contraseña incorrectos",
             });
         }
 
-        const token = jwt.sign({ userId: user.id_usuario, nit: user.nit }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const token = jwt.sign(
+            {
+                userId: user.id_usuario,
+                nit: user.nit,
+                rol: user.rol,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" },
+        );
 
         res.json({
             success: true,
@@ -37,7 +49,6 @@ router.post("/login", async (req, res) => {
                 id: user.id_usuario,
                 nit: user.nit,
                 nombre: user.nombre_usuario,
-                email: user.email,
                 rol: user.rol,
             },
         });
@@ -46,49 +57,6 @@ router.post("/login", async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Error en el servidor",
-        });
-    }
-});
-
-// Ruta para validar el token
-router.get("/validate-token", async (req, res) => {
-    try {
-        const token = req.headers.authorization?.split(" ")[1];
-
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: "No se proporcionó token",
-            });
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findOne({
-            where: { id_usuario: decoded.userId },
-        });
-
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "Usuario no encontrado",
-            });
-        }
-
-        res.json({
-            success: true,
-            user: {
-                id: user.id_usuario,
-                nit: user.nit,
-                nombre: user.nombre_usuario,
-                email: user.email,
-                rol: user.rol,
-            },
-        });
-    } catch (error) {
-        console.error("Error al validar token:", error);
-        res.status(401).json({
-            success: false,
-            message: "Token inválido o expirado",
         });
     }
 });

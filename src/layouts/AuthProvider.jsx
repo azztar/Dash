@@ -9,7 +9,12 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (credentials) => {
         try {
-            const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials);
+            console.log("Intentando login con:", credentials);
+            const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
 
             if (response.data.success) {
                 const { token, user } = response.data;
@@ -20,7 +25,7 @@ export const AuthProvider = ({ children }) => {
             }
             return false;
         } catch (error) {
-            console.error("Error en login:", error);
+            console.error("Error detallado del login:", error.response?.data || error.message);
             throw error;
         }
     };

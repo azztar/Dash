@@ -11,6 +11,7 @@ import ReportsPage from "@/routes/archivos/page";
 import AdminPage from "@/routes/adminpage/page";
 import SettingsPage from "@/routes/settingspage/page";
 import ProtectedRoute from "@/layouts/ProtectedRoute";
+import DetalleAire from "@/routes/aire/detalle";
 
 function App() {
     return (
@@ -67,6 +68,10 @@ function App() {
                             <Route
                                 path="/configuracion"
                                 element={<SettingsPage />}
+                            />
+                            <Route
+                                path="/aire/:estacionId"
+                                element={<DetalleAire />}
                             />
                         </Route>
 

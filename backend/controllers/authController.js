@@ -1,18 +1,17 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const User = require("../models/User");
+const db = require("../config/database");
 
 exports.login = async (req, res) => {
     try {
         const { nit, password } = req.body;
+        console.log("Datos recibidos:", { nit });
 
-        // Agregar logs para depuración
-        console.log("Datos recibidos:", { nit, password });
+        // Buscar usuario por NIT usando consulta directa
+        const [users] = await db.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
+        const user = users[0];
 
-        // Buscar usuario por NIT
-        const user = await User.findOne({ where: { nit } });
-
-        console.log("Usuario encontrado:", user);
+        console.log("Usuario encontrado:", user ? { id: user.id_usuario, rol: user.rol } : null);
 
         if (!user) {
             return res.status(401).json({
@@ -22,8 +21,7 @@ exports.login = async (req, res) => {
         }
 
         // Verificar contraseña
-        const isMatch = await bcrypt.compare(password, user.contrasena); // Cambiado a 'contrasena'
-
+        const isMatch = await bcrypt.compare(password, user.contrasena);
         console.log("Resultado de comparación:", isMatch);
 
         if (!isMatch) {
@@ -36,8 +34,9 @@ exports.login = async (req, res) => {
         // Generar token JWT
         const token = jwt.sign(
             {
-                userId: user.id_usuario, // Cambiado a 'id_usuario'
+                userId: user.id_usuario,
                 nit: user.nit,
+                rol: user.rol,
             },
             process.env.JWT_SECRET,
             { expiresIn: "1h" },
@@ -47,10 +46,11 @@ exports.login = async (req, res) => {
             success: true,
             token,
             user: {
-                id: user.id_usuario, // Cambiado a 'id_usuario'
+                id: user.id_usuario,
                 nit: user.nit,
-                name: user.nombre_usuario, // Cambiado a 'nombre_usuario'
+                nombre: user.nombre_usuario,
                 email: user.email,
+                rol: user.rol,
             },
         });
     } catch (error) {
@@ -108,7 +108,8 @@ exports.validateToken = async (req, res) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findOne({ where: { id_usuario: decoded.userId } });
+        const [users] = await db.query("SELECT * FROM usuarios WHERE id_usuario = ?", [decoded.userId]);
+        const user = users[0];
 
         if (!user) {
             return res.status(401).json({
