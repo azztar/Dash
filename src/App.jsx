@@ -12,6 +12,7 @@ import AdminPage from "@/routes/adminpage/page";
 import SettingsPage from "@/routes/settingspage/page";
 import ProtectedRoute from "@/layouts/ProtectedRoute";
 import DetalleAire from "@/routes/aire/detalle";
+import DataUploadPage from "@/routes/mediciones/cargar";
 
 function App() {
     return (
@@ -75,6 +76,14 @@ function App() {
                                 element={
                                     <ProtectedRoute>
                                         <AirePage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/mediciones/cargar"
+                                element={
+                                    <ProtectedRoute allowedRoles={["administrador", "empleado"]}>
+                                        <DataUploadPage />
                                     </ProtectedRoute>
                                 }
                             />

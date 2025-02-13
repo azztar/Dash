@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const airQualityRoutes = require("./routes/airQualityRoutes");
+const clientRoutes = require("./routes/clientRoutes");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use((req, res, next) => {
 // Rutas
 app.use("/api/auth", authRoutes);
 app.use("/api", airQualityRoutes);
+app.use("/api", clientRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

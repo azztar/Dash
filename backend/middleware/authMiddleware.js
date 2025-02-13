@@ -66,23 +66,4 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
-const checkRole = (roles) => {
-    return (req, res, next) => {
-        if (!req.user || !req.user.currentUser || !req.user.currentUser.rol) {
-            return res.status(401).json({
-                success: false,
-                message: "No autorizado",
-            });
-        }
-
-        if (!roles.includes(req.user.currentUser.rol)) {
-            return res.status(403).json({
-                success: false,
-                message: "No tiene permisos suficientes",
-            });
-        }
-        next();
-    };
-};
-
-module.exports = { authMiddleware, checkRole };
+module.exports = { authMiddleware };

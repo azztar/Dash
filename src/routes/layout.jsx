@@ -1,15 +1,17 @@
+import React, { useState, useEffect, useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { cn } from "@/utils/cn";
-import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/layouts/sidebar";
-import { Header } from "@/layouts/header"; // Cambia la importación aquí
+import { Header } from "@/layouts/header";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useClickOutside } from "@/hooks/use-click-outside";
+import { useAuth } from "@/hooks/use-auth";
 
 const Layout = () => {
     const isDesktopDevice = useMediaQuery("(min-width: 768px)");
     const [collapsed, setCollapsed] = useState(!isDesktopDevice);
     const sidebarRef = useRef(null);
+    const { user } = useAuth(); // Obtener el usuario del contexto de autenticación
 
     useEffect(() => {
         setCollapsed(!isDesktopDevice);
@@ -22,7 +24,7 @@ const Layout = () => {
     });
 
     return (
-        <div className="min-h-screen bg-slate-100 transition-colors dark:bg-slate-950">
+        <div className="relative min-h-screen">
             <div
                 className={cn(
                     "pointer-events-none fixed inset-0 -z-10 bg-black opacity-0 transition-opacity",
@@ -32,8 +34,9 @@ const Layout = () => {
             <Sidebar
                 ref={sidebarRef}
                 collapsed={collapsed}
+                user={user || {}} // Proporcionar un objeto vacío como fallback
             />
-            <div className={cn("transition-[margin] duration-300", collapsed ? "md:ml-[70px]" : "md:ml-[240px]")}>
+            <main className={cn("min-h-screen transition-[margin] duration-300", collapsed ? "md:ml-[70px]" : "md:ml-[240px]")}>
                 <Header
                     collapsed={collapsed}
                     setCollapsed={setCollapsed}
@@ -41,7 +44,7 @@ const Layout = () => {
                 <div className="h-[calc(100vh-60px)] overflow-y-auto overflow-x-hidden p-6">
                     <Outlet />
                 </div>
-            </div>
+            </main>
         </div>
     );
 };

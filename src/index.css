@@ -126,3 +126,137 @@
 .dark .recharts-tooltip-item {
     @apply !text-blue-600;
 }
+
+/* Estilos para los selectores de Tremor */
+.tremor-Select-root {
+    position: relative;
+    z-index: 30;
+}
+
+.tremor-Select-content {
+    z-index: 40;
+    @apply bg-gray-50 dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+}
+
+.tremor-SelectItem-root {
+    @apply bg-gray-50 text-slate-900 dark:bg-slate-800 dark:text-white;
+}
+
+.tremor-SelectItem-root:hover {
+    @apply bg-blue-50 text-slate-900 dark:bg-blue-900 dark:text-white;
+}
+
+/* Estilos para el DatePicker */
+.tremor-DatePicker-root {
+    position: relative;
+    z-index: 20;
+}
+
+.tremor-DatePicker-content {
+    @apply bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-700 rounded-lg p-4;
+    backdrop-filter: blur(16px);
+}
+
+/* Estilos del calendario */
+.react-datepicker__month-container {
+    @apply bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-4;
+}
+
+.react-datepicker__header {
+    @apply bg-transparent border-none pb-4;
+}
+
+.react-datepicker__current-month {
+    @apply text-slate-900 dark:text-white text-base font-semibold mb-4;
+}
+
+.react-datepicker__day-names {
+    @apply grid grid-cols-7 gap-1;
+}
+
+.react-datepicker__day-name {
+    @apply text-slate-600 dark:text-slate-400 text-sm font-medium text-center w-8 h-8 flex items-center justify-center;
+}
+
+.react-datepicker__month {
+    @apply m-0;
+}
+
+.react-datepicker__week {
+    @apply grid grid-cols-7 gap-1;
+}
+
+.react-datepicker__day {
+    @apply text-slate-900 dark:text-white text-sm font-medium w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 m-0;
+}
+
+.react-datepicker__day--selected {
+    @apply bg-blue-500 dark:bg-blue-600 text-white hover:bg-blue-600 dark:hover:bg-blue-700;
+}
+
+.react-datepicker__day--keyboard-selected {
+    @apply bg-blue-500 dark:bg-blue-600 text-white hover:bg-blue-600 dark:hover:bg-blue-700;
+}
+
+.react-datepicker__day--today {
+    @apply bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400;
+}
+
+.react-datepicker__day--outside-month {
+    @apply text-slate-400 dark:text-slate-500;
+}
+
+.react-datepicker__navigation {
+    @apply top-4;
+}
+
+.react-datepicker__navigation--previous {
+    @apply left-4;
+}
+
+.react-datepicker__navigation--next {
+    @apply right-4;
+}
+
+.react-datepicker__navigation-icon {
+    @apply text-slate-400 dark:text-slate-500;
+}
+
+/* Eliminar los estilos anteriores del react-calendar que ya no se usarán */
+.react-calendar,
+.react-calendar__navigation,
+.react-calendar__month-view__days__day,
+.react-calendar__month-view__days__day--weekend,
+.react-calendar__month-view__days__day--neighboringMonth,
+.react-calendar__tile--now,
+.react-calendar__tile--active,
+.react-calendar__month-view__weekdays__weekday {
+    /* Eliminar estos estilos ya que no se usarán más */
+}
+
+/* Ajustes para el input del DatePicker */
+.tremor-DatePicker-input {
+    @apply bg-gray-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white;
+}
+
+.tremor-DatePicker-button {
+    @apply hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg p-1;
+}
+
+/* Estilos para los menús desplegables */
+.tremor-ListBox-content {
+    @apply bg-gray-50 text-slate-900 dark:bg-slate-800 dark:text-white shadow-xl;
+    backdrop-filter: blur(16px);
+}
+
+/* Ajuste visual para los items seleccionados */
+.tremor-SelectItem[data-headlessui-state="active"] {
+    @apply bg-blue-500 text-white dark:bg-blue-600 dark:text-white;
+}
+
+/* Ajuste para el hover de los items */
+.tremor-SelectItem[data-headlessui-state="active"]:hover {
+    @apply bg-blue-600 text-white dark:bg-blue-700 dark:text-white;
+}

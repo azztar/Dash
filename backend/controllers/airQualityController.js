@@ -2,7 +2,10 @@ const db = require("../config/database");
 
 const getStations = async (req, res) => {
     try {
-        const [stations] = await db.query("SELECT * FROM estaciones");
+        const userId = req.user.userId; // Obtenemos el ID del usuario del token
+
+        const [stations] = await db.query("SELECT * FROM estaciones WHERE id_usuario = ?", [userId]);
+
         res.json({
             success: true,
             data: stations,
@@ -18,15 +21,19 @@ const getStations = async (req, res) => {
 
 const getAvailableDates = async (req, res) => {
     const { estacionId, parametro } = req.params;
+    const userId = req.user.userId;
 
     try {
         const [dates] = await db.query(
-            `SELECT DISTINCT DATE_FORMAT(fecha_inicio_muestra, '%Y-%m-%d') as fecha 
-             FROM mediciones_aire 
-             WHERE id_estacion = ? 
-             AND parametro = ?
-             ORDER BY fecha_inicio_muestra`,
-            [estacionId, parametro],
+            `SELECT DISTINCT DATE(ma.fecha_inicio_muestra) as fecha 
+             FROM mediciones_aire ma
+             INNER JOIN normas n ON ma.id_norma = n.id_norma
+             INNER JOIN estaciones e ON ma.id_estacion = e.id_estacion
+             WHERE ma.id_estacion = ? 
+             AND n.parametro = ?
+             AND e.id_usuario = ?
+             ORDER BY ma.fecha_inicio_muestra`,
+            [estacionId, parametro, userId],
         );
 
         res.json({
@@ -34,7 +41,7 @@ const getAvailableDates = async (req, res) => {
             data: dates.map((d) => d.fecha),
         });
     } catch (error) {
-        console.error("Error al obtener fechas:", error);
+        console.error("Error detallado:", error);
         res.status(500).json({
             success: false,
             message: "Error al obtener fechas disponibles",
@@ -45,24 +52,25 @@ const getAvailableDates = async (req, res) => {
 
 const getMeasurements = async (req, res) => {
     const { estacionId, parametro, fecha } = req.params;
+    const userId = req.user.userId;
 
     try {
-        // Convertir la fecha a formato MySQL
-        const dateObj = new Date(fecha);
-        const mysqlDate = dateObj.toISOString().split("T")[0];
-
         const [measurements] = await db.query(
             `SELECT 
-                m.*,
-                d.probabilidad_conformidad,
-                d.regla_decision
-             FROM mediciones_aire m
-             LEFT JOIN declaraciones_conformidad d 
-                ON m.id_medicion = d.id_medicion
-             WHERE m.id_estacion = ? 
-             AND m.parametro = ?
-             AND DATE(m.fecha_inicio_muestra) = ?`,
-            [estacionId, parametro, mysqlDate],
+                ma.*,
+                dc.probabilidad_conformidad,
+                dc.regla_decision,
+                n.valor_limite,
+                n.unidad
+             FROM mediciones_aire ma
+             INNER JOIN normas n ON ma.id_norma = n.id_norma
+             INNER JOIN estaciones e ON ma.id_estacion = e.id_estacion
+             LEFT JOIN declaraciones_conformidad dc ON ma.id_medicion_aire = dc.id_medicion
+             WHERE ma.id_estacion = ? 
+             AND n.parametro = ?
+             AND DATE(ma.fecha_inicio_muestra) = ?
+             AND e.id_usuario = ?`,
+            [estacionId, parametro, fecha, userId],
         );
 
         res.json({
@@ -70,7 +78,7 @@ const getMeasurements = async (req, res) => {
             data: measurements,
         });
     } catch (error) {
-        console.error("Error al obtener mediciones:", error);
+        console.error("Error detallado:", error);
         res.status(500).json({
             success: false,
             message: "Error al obtener mediciones",

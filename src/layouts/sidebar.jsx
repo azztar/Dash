@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileText, Wind, Users, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, Wind, Users, Settings, Upload } from "lucide-react";
 import logoLight from "@/assets/logo-light.svg";
 import logoDark from "@/assets/logo-dark.svg";
 import { cn } from "@/utils/cn";
@@ -45,7 +45,7 @@ const navbarLinks = [
     },
 ];
 
-export const Sidebar = forwardRef(({ collapsed }, ref) => {
+export const Sidebar = forwardRef(({ collapsed, user = {} }, ref) => {
     return (
         <aside
             ref={ref}
@@ -90,6 +90,18 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
                         ))}
                     </nav>
                 ))}
+                {(user?.rol === "administrador" || user?.rol === "empleado") && (
+                    <NavLink
+                        to="/mediciones/cargar"
+                        className={cn("sidebar-item", collapsed && "md:w-[45px]")}
+                    >
+                        <Upload
+                            size={22}
+                            className="flex-shrink-0"
+                        />
+                        {!collapsed && <p className="whitespace-nowrap">Cargar Mediciones</p>}
+                    </NavLink>
+                )}
             </div>
         </aside>
     );
@@ -99,6 +111,14 @@ Sidebar.displayName = "Sidebar";
 
 Sidebar.propTypes = {
     collapsed: PropTypes.bool,
+    user: PropTypes.shape({
+        rol: PropTypes.string,
+    }),
+};
+
+Sidebar.defaultProps = {
+    collapsed: false,
+    user: {},
 };
 
 export default Sidebar;
