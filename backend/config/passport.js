@@ -1,7 +1,7 @@
 // backend/config/passport.js
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const User = require("../models/User"); // Importa el modelo de usuario
+const User = require("../models/user"); // Importa el modelo de usuario
 
 passport.use(
     new GoogleStrategy(

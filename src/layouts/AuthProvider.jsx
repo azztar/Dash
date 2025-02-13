@@ -7,26 +7,35 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const login = async (credentials) => {
+    const login = async (nit, password) => {
         try {
-            console.log("Intentando login con:", credentials);
-            const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials, {
-                headers: {
-                    "Content-Type": "application/json",
+            console.log("Intentando login con:", { nit, password }); // Para debuggear
+
+            const response = await axios.post(
+                `${import.meta.env.VITE_API_URL}/api/auth/login`,
+                {
+                    nit,
+                    password,
                 },
-            });
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+
+            console.log("Respuesta del servidor:", response.data); // Para debuggear
 
             if (response.data.success) {
-                const { token, user } = response.data;
-                localStorage.setItem("token", token);
-                localStorage.setItem("user", JSON.stringify(user));
-                setUser(user);
+                localStorage.setItem("token", response.data.token);
+                setUser(response.data.user);
                 return true;
             }
             return false;
         } catch (error) {
-            console.error("Error detallado del login:", error.response?.data || error.message);
-            throw error;
+            console.error("Error detallado del login:", error.response?.data);
+            console.error("Error en login:", error);
+            return false;
         }
     };
 
@@ -40,11 +49,12 @@ export const AuthProvider = ({ children }) => {
         try {
             const token = localStorage.getItem("token");
             if (!token) {
+                setUser(null);
                 setLoading(false);
                 return;
             }
 
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/auth/validate-token`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/validate-token`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -53,11 +63,11 @@ export const AuthProvider = ({ children }) => {
             if (response.data.success) {
                 setUser(response.data.user);
             } else {
-                logout();
+                setUser(null);
             }
         } catch (error) {
             console.error("Error al verificar autenticación:", error);
-            logout();
+            setUser(null);
         } finally {
             setLoading(false);
         }

@@ -1,47 +1,57 @@
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const db = require("../config/database");
 
-exports.login = async (req, res) => {
+const login = async (req, res) => {
     try {
         const { nit, password } = req.body;
-        console.log("Datos recibidos:", { nit });
 
-        // Buscar usuario por NIT usando consulta directa
+        console.log("Datos recibidos:", { nit, password });
+
+        if (!nit || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "NIT y contraseña son requeridos",
+            });
+        }
+
+        // Buscar usuario por NIT usando tu estructura de tabla
         const [users] = await db.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
+
+        console.log("Usuario encontrado:", users[0]);
+
+        if (users.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: "Credenciales inválidas",
+            });
+        }
+
         const user = users[0];
 
-        console.log("Usuario encontrado:", user ? { id: user.id_usuario, rol: user.rol } : null);
+        // Verificar contraseña usando el campo contrasena
+        const isValidPassword = await bcrypt.compare(password, user.contrasena);
 
-        if (!user) {
+        if (!isValidPassword) {
             return res.status(401).json({
                 success: false,
-                message: "Usuario no encontrado",
+                message: "Credenciales inválidas",
             });
         }
 
-        // Verificar contraseña
-        const isMatch = await bcrypt.compare(password, user.contrasena);
-        console.log("Resultado de comparación:", isMatch);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: "Contraseña incorrecta",
-            });
-        }
-
-        // Generar token JWT
+        // Generar token con los campos relevantes
         const token = jwt.sign(
             {
                 userId: user.id_usuario,
                 nit: user.nit,
                 rol: user.rol,
+                empresa: user.nombre_empresa,
             },
             process.env.JWT_SECRET,
-            { expiresIn: "1h" },
+            { expiresIn: "24h" },
         );
 
+        // Enviar respuesta con los campos de tu estructura
         res.json({
             success: true,
             token,
@@ -51,13 +61,15 @@ exports.login = async (req, res) => {
                 nombre: user.nombre_usuario,
                 email: user.email,
                 rol: user.rol,
+                empresa: user.nombre_empresa,
             },
         });
     } catch (error) {
-        console.error("Error en login:", error);
+        console.error("Error en el servidor:", error);
         res.status(500).json({
             success: false,
             message: "Error en el servidor",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined,
         });
     }
 };
@@ -135,4 +147,8 @@ exports.validateToken = async (req, res) => {
             message: "Token inválido o expirado",
         });
     }
+};
+
+module.exports = {
+    login,
 };

@@ -35,39 +35,33 @@ router.post("/login", async (req, res) => {
     }
 });
 
-const authMiddleware = async (req, res, next) => {
+const authMiddleware = (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
 
         if (!token) {
             return res.status(401).json({
                 success: false,
-                message: "Token no proporcionado",
+                message: "No se proporcionó token",
             });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Verificar que el usuario existe
-        const [users] = await db.query("SELECT id_usuario, nit, rol FROM usuarios WHERE id_usuario = ?", [decoded.userId]);
-
-        if (!users || users.length === 0) {
-            return res.status(401).json({
-                success: false,
-                message: "Usuario no encontrado",
-            });
-        }
-
+        // Incluir información adicional en req.user
         req.user = {
-            ...decoded,
-            currentUser: users[0],
+            userId: decoded.userId,
+            nit: decoded.nit,
+            rol: decoded.rol,
+            empresa: decoded.empresa,
         };
+
         next();
     } catch (error) {
-        console.error("Error de autenticación:", error);
-        res.status(401).json({
+        console.error("Error en autenticación:", error);
+        return res.status(401).json({
             success: false,
-            message: "Token inválido o expirado",
+            message: "Token inválido",
         });
     }
 };

@@ -53,10 +53,7 @@ function App() {
                                 path="/analisis"
                                 element={<AnalisisPage />}
                             />
-                            <Route
-                                path="/analisis_aire"
-                                element={<AirePage />}
-                            />
+                            {/* <Route path="/analisis_aire" element={<AirePage />} /> */}
                             <Route
                                 path="/informe"
                                 element={<ReportsPage />}
@@ -72,6 +69,14 @@ function App() {
                             <Route
                                 path="/aire/:estacionId"
                                 element={<DetalleAire />}
+                            />
+                            <Route
+                                path="/aire"
+                                element={
+                                    <ProtectedRoute>
+                                        <AirePage />
+                                    </ProtectedRoute>
+                                }
                             />
                         </Route>
 

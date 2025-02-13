@@ -28,7 +28,7 @@ const navbarLinks = [
         links: [
             {
                 label: "Análisis Aire",
-                path: "/analisis_aire",
+                path: "/aire",
                 icon: Wind,
             },
             {
