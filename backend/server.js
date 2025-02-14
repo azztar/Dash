@@ -4,10 +4,16 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const airQualityRoutes = require("./routes/airQualityRoutes");
 const clientRoutes = require("./routes/clientRoutes");
+const measurementRoutes = require("./routes/measurementRoutes");
 
 const app = express();
 
-app.use(cors());
+app.use(
+    cors({
+        origin: "http://localhost:3001",
+        credentials: true,
+    }),
+);
 app.use(express.json());
 
 // Middleware para logging
@@ -20,6 +26,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api", airQualityRoutes);
 app.use("/api", clientRoutes);
+app.use("/api", measurementRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -19,20 +19,24 @@ const getClients = async (req, res) => {
 };
 
 const getClientStations = async (req, res) => {
-    const { clientId } = req.params;
-
     try {
-        const [stations] = await db.query("SELECT * FROM estaciones WHERE id_usuario = ?", [clientId]);
+        // En lugar de buscar estaciones existentes, siempre devolver las 4 estaciones
+        const stations = [
+            { id_estacion: "1", nombre_estacion: "Estación 1" },
+            { id_estacion: "2", nombre_estacion: "Estación 2" },
+            { id_estacion: "3", nombre_estacion: "Estación 3" },
+            { id_estacion: "4", nombre_estacion: "Estación 4" },
+        ];
 
         res.json({
             success: true,
             data: stations,
         });
     } catch (error) {
-        console.error("Error al obtener estaciones:", error);
+        console.error("Error:", error);
         res.status(500).json({
             success: false,
-            message: "Error al obtener estaciones",
+            message: error.message,
         });
     }
 };

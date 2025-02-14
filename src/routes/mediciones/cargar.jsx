@@ -5,6 +5,9 @@ import { clientService } from "@/services/clientService";
 import { Upload } from "lucide-react";
 import { DateSelector } from "@/components/DateSelector";
 
+// 1. Primero, agrega la variable de entorno para la URL del API
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const DataUploadPage = () => {
     const [selectedClient, setSelectedClient] = useState("");
     const [selectedStation, setSelectedStation] = useState("");
@@ -86,6 +89,7 @@ const DataUploadPage = () => {
         }
     };
 
+    // 2. Modifica el handleSubmit para usar la URL correcta
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!file || !selectedClient || !selectedStation || !selectedParameter || !selectedDate) {
@@ -102,13 +106,18 @@ const DataUploadPage = () => {
 
         try {
             setLoading(true);
-            const response = await fetch("/api/measurements/upload", {
+            const response = await fetch(`${API_URL}/api/measurements/upload`, {
                 method: "POST",
                 body: formData,
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
             });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             if (data.success) {
                 alert("Datos cargados exitosamente");
