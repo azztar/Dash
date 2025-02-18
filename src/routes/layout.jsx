@@ -5,13 +5,13 @@ import { Sidebar } from "@/layouts/sidebar";
 import { Header } from "@/layouts/header";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useClickOutside } from "@/hooks/use-click-outside";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../contexts/AuthContext";
 
 const Layout = () => {
     const isDesktopDevice = useMediaQuery("(min-width: 768px)");
     const [collapsed, setCollapsed] = useState(!isDesktopDevice);
     const sidebarRef = useRef(null);
-    const { user } = useAuth(); // Obtener el usuario del contexto de autenticación
+    const { user, logout } = useAuth();
 
     useEffect(() => {
         setCollapsed(!isDesktopDevice);

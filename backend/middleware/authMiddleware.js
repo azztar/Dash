@@ -40,26 +40,27 @@ const authMiddleware = (req, res, next) => {
         const token = req.headers.authorization?.split(" ")[1];
 
         if (!token) {
+            console.log("No se encontró token");
             return res.status(401).json({
                 success: false,
-                message: "No se proporcionó token",
+                message: "No se proporcionó token de autenticación",
             });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("Token decodificado:", decoded);
 
-        // Incluir información adicional en req.user
         req.user = {
-            userId: decoded.userId,
-            nit: decoded.nit,
+            id: decoded.userId, // Cambiado de id a userId
             rol: decoded.rol,
-            empresa: decoded.empresa,
+            nit: decoded.nit,
         };
 
+        console.log("Usuario extraído del token:", req.user);
         next();
     } catch (error) {
         console.error("Error en autenticación:", error);
-        return res.status(401).json({
+        res.status(401).json({
             success: false,
             message: "Token inválido",
         });

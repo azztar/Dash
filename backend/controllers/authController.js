@@ -3,22 +3,12 @@ const bcrypt = require("bcrypt");
 const db = require("../config/database");
 
 const login = async (req, res) => {
+    const connection = await db.getConnection();
     try {
         const { nit, password } = req.body;
+        console.log("Intento de login:", { nit });
 
-        console.log("Datos recibidos:", { nit, password });
-
-        if (!nit || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "NIT y contraseña son requeridos",
-            });
-        }
-
-        // Buscar usuario por NIT usando tu estructura de tabla
-        const [users] = await db.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
-
-        console.log("Usuario encontrado:", users[0]);
+        const [users] = await connection.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
 
         if (users.length === 0) {
             return res.status(401).json({
@@ -28,18 +18,15 @@ const login = async (req, res) => {
         }
 
         const user = users[0];
+        const validPassword = await bcrypt.compare(password, user.contrasena);
 
-        // Verificar contraseña usando el campo contrasena
-        const isValidPassword = await bcrypt.compare(password, user.contrasena);
-
-        if (!isValidPassword) {
+        if (!validPassword) {
             return res.status(401).json({
                 success: false,
                 message: "Credenciales inválidas",
             });
         }
 
-        // Generar token con los campos relevantes
         const token = jwt.sign(
             {
                 userId: user.id_usuario,
@@ -51,26 +38,29 @@ const login = async (req, res) => {
             { expiresIn: "24h" },
         );
 
-        // Enviar respuesta con los campos de tu estructura
+        console.log("Token generado para usuario:", {
+            userId: user.id_usuario,
+            rol: user.rol,
+        });
+
         res.json({
             success: true,
             token,
             user: {
                 id: user.id_usuario,
-                nit: user.nit,
                 nombre: user.nombre_usuario,
-                email: user.email,
                 rol: user.rol,
                 empresa: user.nombre_empresa,
             },
         });
     } catch (error) {
-        console.error("Error en el servidor:", error);
+        console.error("Error en login:", error);
         res.status(500).json({
             success: false,
             message: "Error en el servidor",
-            error: process.env.NODE_ENV === "development" ? error.message : undefined,
         });
+    } finally {
+        connection.release();
     }
 };
 
@@ -149,6 +139,30 @@ exports.validateToken = async (req, res) => {
     }
 };
 
+const verifyToken = async (req, res) => {
+    try {
+        // El usuario ya está verificado por el middleware de autenticación
+        const user = req.user;
+        res.json({
+            success: true,
+            user: {
+                id: user.id_usuario,
+                nombre: user.nombre_usuario,
+                email: user.email,
+                rol: user.rol,
+                empresa: user.nombre_empresa,
+            },
+        });
+    } catch (error) {
+        console.error("Error en verificación:", error);
+        res.status(401).json({
+            success: false,
+            message: "Token inválido o expirado",
+        });
+    }
+};
+
 module.exports = {
     login,
+    verifyToken,
 };

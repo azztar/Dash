@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRightIcon } from "@heroicons/react/24/solid";
 import AuthLayout from "@/components/AuthLayout";
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
     const [nit, setNit] = useState("");
     const [password, setPassword] = useState("");
@@ -16,11 +17,21 @@ const Login = () => {
         setError(""); // Limpiar error anterior
 
         try {
-            const success = await login(nit, password);
-            if (success) {
-                navigate("/dashboard");
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ nit, password }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                login(data.token, data.user);
+                const from = location.state?.from?.pathname || "/dashboard";
+                navigate(from, { replace: true });
             } else {
-                setError("Credenciales inválidas");
+                setError(data.message || "Credenciales inválidas");
             }
         } catch (error) {
             console.error("Error al iniciar sesión:", error);

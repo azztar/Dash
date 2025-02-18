@@ -1,23 +1,26 @@
 // src/layouts/ProtectedRoute.jsx
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import useAuth from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 
-const ProtectedRoute = ({ children }) => {
-    const { user, loading } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+    const { user } = useAuth();
     const location = useLocation();
-
-    console.log("Estado de autenticación:", { user, loading });
-
-    if (loading) {
-        return <div>Cargando...</div>;
-    }
 
     if (!user) {
         return (
             <Navigate
                 to="/login"
                 state={{ from: location }}
+                replace
+            />
+        );
+    }
+
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user.rol)) {
+        return (
+            <Navigate
+                to="/dashboard"
                 replace
             />
         );

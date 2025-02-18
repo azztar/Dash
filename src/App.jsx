@@ -1,7 +1,7 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/theme-context";
-import { AuthProvider } from "@/layouts/AuthProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Layout from "@/routes/layout";
 import Login from "@/pages/Login";
 import DashboardPage from "@/routes/dashboard/page";
@@ -13,32 +13,23 @@ import SettingsPage from "@/routes/settingspage/page";
 import ProtectedRoute from "@/layouts/ProtectedRoute";
 import DetalleAire from "@/routes/aire/detalle";
 import DataUploadPage from "@/routes/mediciones/cargar";
+import { RequireAuth } from "@/components/RequireAuth";
 
 function App() {
     return (
-        <ThemeProvider
-            storageKey="theme"
-            defaultTheme="light"
-        >
-            <AuthProvider>
-                <BrowserRouter>
+        <AuthProvider>
+            <BrowserRouter>
+                <ThemeProvider
+                    storageKey="theme"
+                    defaultTheme="light"
+                >
                     <Routes>
-                        {/* Rutas públicas */}
                         <Route
                             path="/login"
                             element={<Login />}
                         />
-                        <Route
-                            path="/"
-                            element={
-                                <Navigate
-                                    to="/login"
-                                    replace
-                                />
-                            }
-                        />
 
-                        {/* Rutas protegidas dentro del Layout */}
+                        {/* Rutas protegidas */}
                         <Route
                             element={
                                 <ProtectedRoute>
@@ -51,10 +42,13 @@ function App() {
                                 element={<DashboardPage />}
                             />
                             <Route
+                                path="/aire"
+                                element={<AirePage />}
+                            />
+                            <Route
                                 path="/analisis"
                                 element={<AnalisisPage />}
                             />
-                            {/* <Route path="/analisis_aire" element={<AirePage />} /> */}
                             <Route
                                 path="/informe"
                                 element={<ReportsPage />}
@@ -72,14 +66,6 @@ function App() {
                                 element={<DetalleAire />}
                             />
                             <Route
-                                path="/aire"
-                                element={
-                                    <ProtectedRoute>
-                                        <AirePage />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
                                 path="/mediciones/cargar"
                                 element={
                                     <ProtectedRoute allowedRoles={["administrador", "empleado"]}>
@@ -88,6 +74,17 @@ function App() {
                                 }
                             />
                         </Route>
+
+                        {/* Ruta por defecto */}
+                        <Route
+                            path="/"
+                            element={
+                                <Navigate
+                                    to="/dashboard"
+                                    replace
+                                />
+                            }
+                        />
 
                         {/* Ruta 404 */}
                         <Route
@@ -99,9 +96,9 @@ function App() {
                             }
                         />
                     </Routes>
-                </BrowserRouter>
-            </AuthProvider>
-        </ThemeProvider>
+                </ThemeProvider>
+            </BrowserRouter>
+        </AuthProvider>
     );
 }
 
