@@ -32,7 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/air-quality", airQualityRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/stations", stationRoutes);
-app.use("/api", measurementRoutes);
+app.use("/api/measurements", measurementRoutes);
 
 // Manejador de errores mejorado con más detalles
 app.use((err, req, res, next) => {

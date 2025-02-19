@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = "http://localhost:5000"; // URL fija para desarrollo
 
 export const clientService = {
     async getClients() {
@@ -14,21 +14,25 @@ export const clientService = {
             return response.data.data;
         } catch (error) {
             console.error("Error al obtener clientes:", error);
-            return [];
+            throw error;
         }
     },
 
     async getClientStations(clientId) {
         try {
+            console.log("🔍 Solicitando estaciones para cliente:", clientId);
+
             const token = localStorage.getItem("token");
             const response = await axios.get(`${API_URL}/api/clients/${clientId}/stations`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
             });
-            return response.data.data;
+
+            console.log("✅ Estaciones obtenidas:", response.data);
+            return response.data.data || [];
         } catch (error) {
-            console.error("Error al obtener estaciones:", error);
+            console.error("❌ Error al obtener estaciones:", error);
             return [];
         }
     },

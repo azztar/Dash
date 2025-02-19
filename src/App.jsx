@@ -14,6 +14,7 @@ import ProtectedRoute from "@/layouts/ProtectedRoute";
 import DetalleAire from "@/routes/aire/detalle";
 import DataUploadPage from "@/routes/mediciones/cargar";
 import { RequireAuth } from "@/components/RequireAuth";
+import { ToastContainer } from "react-toastify";
 
 function App() {
     return (
@@ -96,6 +97,18 @@ function App() {
                             }
                         />
                     </Routes>
+                    <ToastContainer
+                        position="top-right"
+                        autoClose={3000}
+                        hideProgressBar={false}
+                        newestOnTop={false}
+                        closeOnClick
+                        rtl={false}
+                        pauseOnFocusLoss
+                        draggable
+                        pauseOnHover
+                        theme="light"
+                    />
                 </ThemeProvider>
             </BrowserRouter>
         </AuthProvider>

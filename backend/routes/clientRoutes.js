@@ -3,9 +3,7 @@ const router = express.Router();
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { getClients, getClientStations } = require("../controllers/clientController");
 
-router.use(authMiddleware);
-
-router.get("/clients", getClients);
-router.get("/clients/:clientId/stations", getClientStations);
+router.get("/", authMiddleware, getClients);
+router.get("/:clientId/stations", authMiddleware, getClientStations);
 
 module.exports = router;

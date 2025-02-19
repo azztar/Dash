@@ -2,15 +2,26 @@ const db = require("../config/database");
 
 const getClients = async (req, res) => {
     try {
-        // Solo obtener clientes (usuarios con rol 'cliente')
-        const [clients] = await db.query("SELECT id_usuario, nombre_empresa, nit FROM usuarios WHERE rol = ?", ["cliente"]);
+        console.log("🔍 Obteniendo lista de clientes");
+
+        const [clients] = await db.query(
+            `SELECT 
+                id_usuario,
+                nombre_empresa,
+                nit 
+            FROM usuarios 
+            WHERE rol = 'cliente'
+            ORDER BY nombre_empresa`,
+        );
+
+        console.log("✅ Clientes encontrados:", clients.length);
 
         res.json({
             success: true,
             data: clients,
         });
     } catch (error) {
-        console.error("Error al obtener clientes:", error);
+        console.error("❌ Error al obtener clientes:", error);
         res.status(500).json({
             success: false,
             message: "Error al obtener clientes",
@@ -20,23 +31,30 @@ const getClients = async (req, res) => {
 
 const getClientStations = async (req, res) => {
     try {
-        // En lugar de buscar estaciones existentes, siempre devolver las 4 estaciones
-        const stations = [
-            { id_estacion: "1", nombre_estacion: "Estación 1" },
-            { id_estacion: "2", nombre_estacion: "Estación 2" },
-            { id_estacion: "3", nombre_estacion: "Estación 3" },
-            { id_estacion: "4", nombre_estacion: "Estación 4" },
-        ];
+        const { clientId } = req.params;
+        console.log("🔍 Buscando estaciones del cliente:", clientId);
+
+        const [stations] = await db.query(
+            `SELECT 
+                id_estacion,
+                nombre_estacion,
+                ubicacion
+            FROM estaciones 
+            WHERE id_usuario = ?`,
+            [clientId],
+        );
+
+        console.log("✅ Estaciones encontradas:", stations.length);
 
         res.json({
             success: true,
             data: stations,
         });
     } catch (error) {
-        console.error("Error:", error);
+        console.error("❌ Error al obtener estaciones:", error);
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: "Error al obtener estaciones",
         });
     }
 };

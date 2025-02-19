@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Card, Select, SelectItem, DatePicker } from "@tremor/react";
+import { Card, Select, SelectItem } from "@tremor/react";
 import { es } from "date-fns/locale";
 import { clientService } from "@/services/clientService";
 import { Upload } from "lucide-react";
-import { DateSelector } from "@/components/DateSelector";
+import { AdminDateSelector } from "@/components/AdminDateSelector";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 // 1. Primero, agrega la variable de entorno para la URL del API
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -92,45 +94,30 @@ const DataUploadPage = () => {
     // 2. Modifica el handleSubmit para usar la URL correcta
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!file || !selectedClient || !selectedStation || !selectedParameter || !selectedDate) {
-            alert("Por favor complete todos los campos");
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("clientId", selectedClient);
-        formData.append("stationId", selectedStation);
-        formData.append("parameterId", selectedParameter);
-        formData.append("date", selectedDate.toISOString());
+        setLoading(true);
 
         try {
-            setLoading(true);
-            const response = await fetch(`${API_URL}/api/measurements/upload`, {
-                method: "POST",
-                body: formData,
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("stationId", selectedStation);
+            formData.append("parameterId", selectedParameter);
+            formData.append("date", selectedDate.toISOString().split("T")[0]);
+
+            const token = localStorage.getItem("token");
+            const response = await axios.post(`${API_URL}/api/measurements/upload`, formData, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "multipart/form-data",
                 },
             });
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                alert("Datos cargados exitosamente");
-                // Limpiar el formulario
-                setFile(null);
-                setSelectedStation("");
-                setSelectedParameter("");
-            } else {
-                throw new Error(data.message);
+            if (response.data.success) {
+                toast.success("Datos cargados exitosamente");
+                resetForm();
             }
         } catch (error) {
             console.error("Error al cargar datos:", error);
-            alert(error.message || "Error al cargar los datos");
+            toast.error(error.response?.data?.message || "Error al cargar los datos");
         } finally {
             setLoading(false);
         }
@@ -227,7 +214,7 @@ const DataUploadPage = () => {
                                 <div className="relative">
                                     <label className="mb-3 block text-sm font-medium text-gray-700">Periodo</label>
                                     <div className="relative z-10">
-                                        <DateSelector
+                                        <AdminDateSelector
                                             selectedDate={selectedDate}
                                             onSelect={setSelectedDate}
                                         />
