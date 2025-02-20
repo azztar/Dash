@@ -91,6 +91,13 @@ const DataUploadPage = () => {
         }
     };
 
+    const resetForm = () => {
+        setFile(null);
+        setSelectedParameter("");
+        setSelectedStation("");
+        setSelectedDate(new Date());
+    };
+
     // 2. Modifica el handleSubmit para usar la URL correcta
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -101,7 +108,9 @@ const DataUploadPage = () => {
             formData.append("file", file);
             formData.append("stationId", selectedStation);
             formData.append("parameterId", selectedParameter);
-            formData.append("date", selectedDate.toISOString().split("T")[0]);
+            formData.append("selectedClient", selectedClient);
+            // Agregar la fecha del calendario como fecha_inicio_muestra
+            formData.append("fecha_inicio_muestra", selectedDate.toISOString().split("T")[0]);
 
             const token = localStorage.getItem("token");
             const response = await axios.post(`${API_URL}/api/measurements/upload`, formData, {

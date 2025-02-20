@@ -19,6 +19,49 @@ const getNormaId = async (parametroNombre) => {
     return normas[0].id_norma;
 };
 
+// Función para obtener o crear norma para el cliente
+const getNormaForClient = async (parametroNombre, clienteId) => {
+    try {
+        // Primero buscar si el cliente ya tiene la norma
+        const [existingNorma] = await db.query(
+            `SELECT id_norma 
+             FROM normas 
+             WHERE parametro = ? AND id_usuario = ?`,
+            [parametroNombre, clienteId],
+        );
+
+        if (existingNorma.length > 0) {
+            return existingNorma[0].id_norma;
+        }
+
+        // Si no existe, obtener la norma base (template)
+        const [baseNorma] = await db.query(
+            `SELECT valor_limite, unidad, periodo_medicion 
+             FROM normas 
+             WHERE parametro = ? AND id_usuario = 3`,
+            [parametroNombre],
+        );
+
+        if (baseNorma.length === 0) {
+            throw new Error(`No existe norma base para el parámetro: ${parametroNombre}`);
+        }
+
+        // Crear nueva norma para el cliente
+        const [result] = await db.query(
+            `INSERT INTO normas 
+             (nombre_norma, parametro, valor_limite, unidad, id_usuario, periodo_medicion)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [`Norma ${parametroNombre}`, parametroNombre, baseNorma[0].valor_limite, baseNorma[0].unidad, clienteId, baseNorma[0].periodo_medicion],
+        );
+
+        console.log(`✅ Norma creada para cliente ${clienteId}: ${parametroNombre}`);
+        return result.insertId;
+    } catch (error) {
+        console.error("❌ Error al obtener/crear norma:", error);
+        throw error;
+    }
+};
+
 // Ruta para obtener fechas disponibles
 router.get("/dates", async (req, res) => {
     // Cambiar /measurements/dates a /dates
@@ -47,20 +90,21 @@ router.get("/dates", async (req, res) => {
 // Ruta para obtener mediciones
 router.get("/", getMeasurements); // Cambiar /measurements a /
 
-// Ruta para cargar mediciones
+// Modificar la ruta de carga
 router.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
     try {
-        const { stationId, parameterId } = req.body;
+        const { stationId, parameterId, selectedClient, fecha_inicio_muestra } = req.body;
         const file = req.file;
 
-        // Obtener el ID real de la norma
-        const normaId = await getNormaId(parameterId);
-
         console.log("📥 Datos recibidos:", {
+            cliente: selectedClient,
             estacion: stationId,
             parametro: parameterId,
             archivo: file?.originalname,
         });
+
+        // Obtener norma específica para el cliente
+        const normaId = await getNormaForClient(parameterId, selectedClient);
 
         // Validar datos requeridos
         if (!file || !stationId || !parameterId) {
@@ -81,12 +125,14 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
                 console.log("📄 Procesando fila:", row);
 
                 // Procesar fecha
-                let fecha;
+                let fecha_muestra;
                 if (typeof row.fecha_muestra === "string") {
                     const [day, month, year] = row.fecha_muestra.split("/");
-                    fecha = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-                } else {
-                    fecha = new Date(row.fecha_muestra).toISOString().split("T")[0];
+                    fecha_muestra = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+                } else if (typeof row.fecha_muestra === "number") {
+                    // Convertir fecha de Excel (número serial) a fecha real
+                    const excelDate = new Date((row.fecha_muestra - 25569) * 86400 * 1000);
+                    fecha_muestra = excelDate.toISOString().split("T")[0];
                 }
 
                 // Procesar hora
@@ -122,13 +168,13 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
                     stationId,
                     normaId, // Usar el ID real de la norma
                     row.muestra?.toString() || "",
-                    fecha,
+                    fecha_muestra, // Fecha del Excel
                     horaFormatted,
                     tiempo_muestreo,
                     concentracion,
                     u,
                     u_factor_cobertura,
-                    fecha,
+                    fecha_inicio_muestra, // Fecha del calendario
                 ];
             } catch (error) {
                 console.error("❌ Error procesando fila:", {
