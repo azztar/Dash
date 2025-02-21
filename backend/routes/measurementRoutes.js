@@ -22,7 +22,7 @@ const getNormaId = async (parametroNombre) => {
 // Función para obtener o crear norma para el cliente
 const getNormaForClient = async (parametroNombre, clienteId) => {
     try {
-        // Primero buscar si el cliente ya tiene la norma
+        // Buscar si el cliente ya tiene la norma
         const [existingNorma] = await db.query(
             `SELECT id_norma 
              FROM normas 
@@ -34,24 +34,24 @@ const getNormaForClient = async (parametroNombre, clienteId) => {
             return existingNorma[0].id_norma;
         }
 
-        // Si no existe, obtener la norma base (template)
-        const [baseNorma] = await db.query(
-            `SELECT valor_limite, unidad, periodo_medicion 
-             FROM normas 
-             WHERE parametro = ? AND id_usuario = 3`,
-            [parametroNombre],
-        );
+        // Valores predeterminados según el parámetro
+        const defaultValues = {
+            PM10: { limite: 75, unidad: "µg/m³", periodo: "24h" },
+            "PM2.5": { limite: 37, unidad: "µg/m³", periodo: "24h" },
+            SO2: { limite: 50, unidad: "µg/m³", periodo: "24h" },
+            NO2: { limite: 200, unidad: "µg/m³", periodo: "1h" },
+            O3: { limite: 100, unidad: "µg/m³", periodo: "8h" },
+            CO: { limite: 10000, unidad: "µg/m³", periodo: "8h" },
+        };
 
-        if (baseNorma.length === 0) {
-            throw new Error(`No existe norma base para el parámetro: ${parametroNombre}`);
-        }
+        const parameterDefaults = defaultValues[parametroNombre] || { limite: 0, unidad: "µg/m³", periodo: "24h" };
 
-        // Crear nueva norma para el cliente
+        // Crear nueva norma para el cliente con la estructura correcta de la tabla
         const [result] = await db.query(
             `INSERT INTO normas 
-             (nombre_norma, parametro, valor_limite, unidad, id_usuario, periodo_medicion)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [`Norma ${parametroNombre}`, parametroNombre, baseNorma[0].valor_limite, baseNorma[0].unidad, clienteId, baseNorma[0].periodo_medicion],
+             (parametro, valor_limite, unidad, id_usuario, periodo_medicion)
+             VALUES (?, ?, ?, ?, ?)`,
+            [parametroNombre, parameterDefaults.limite, parameterDefaults.unidad, clienteId, parameterDefaults.periodo],
         );
 
         console.log(`✅ Norma creada para cliente ${clienteId}: ${parametroNombre}`);
@@ -59,6 +59,40 @@ const getNormaForClient = async (parametroNombre, clienteId) => {
     } catch (error) {
         console.error("❌ Error al obtener/crear norma:", error);
         throw error;
+    }
+};
+
+// Función para crear o actualizar la norma
+const createOrUpdateNorma = async (connection, parametro, clientId) => {
+    const [existingNorma] = await connection.query(
+        `SELECT id FROM normas 
+         WHERE parametro = ? AND id_usuario = ?`,
+        [parametro, clientId],
+    );
+
+    if (!existingNorma.length) {
+        await connection.query(
+            `INSERT INTO normas (parametro, valor_limite, unidad, periodo_medicion, id_usuario)
+             VALUES (?, ?, ?, ?, ?)`,
+            [parametro, 0, "µg/m³", "24h", clientId],
+        );
+    }
+};
+
+// Función para crear o verificar la estación
+const createOrVerifyStation = async (connection, stationId, clientId, stationName) => {
+    const [existingStation] = await connection.query(
+        `SELECT id_estacion FROM estaciones 
+         WHERE id_estacion = ? AND id_usuario = ?`,
+        [stationId, clientId],
+    );
+
+    if (!existingStation.length) {
+        await connection.query(
+            `INSERT INTO estaciones (id_estacion, nombre_estacion, id_usuario)
+             VALUES (?, ?, ?)`,
+            [stationId, stationName, clientId],
+        );
     }
 };
 
@@ -90,130 +124,131 @@ router.get("/dates", async (req, res) => {
 // Ruta para obtener mediciones
 router.get("/", getMeasurements); // Cambiar /measurements a /
 
+// Función para convertir fecha y hora del formato español
+const parseFechaHora = (fechaStr, horaStr) => {
+    // Convertir fecha del formato d/mm/yyyy a yyyy-mm-dd
+    const [dia, mes, ano] = fechaStr.split("/");
+    const fecha = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+
+    // Convertir hora y limpiar "a. m." y "p. m."
+    let hora = horaStr.toLowerCase().replace(" a. m.", "").replace(" p. m.", "").trim();
+
+    // Asegurar formato de 24 horas
+    if (horaStr.toLowerCase().includes("p. m.")) {
+        const [h, m] = hora.split(":");
+        let hour = parseInt(h);
+        if (hour !== 12) hour += 12;
+        hora = `${hour}:${m}`;
+    }
+
+    return { fecha, hora };
+};
+
 // Modificar la ruta de carga
 router.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
+    const connection = await db.getConnection();
+
     try {
+        await connection.beginTransaction();
+
         const { stationId, parameterId, selectedClient, fecha_inicio_muestra } = req.body;
         const file = req.file;
 
-        console.log("📥 Datos recibidos:", {
-            cliente: selectedClient,
-            estacion: stationId,
-            parametro: parameterId,
-            archivo: file?.originalname,
-        });
-
-        // Obtener norma específica para el cliente
-        const normaId = await getNormaForClient(parameterId, selectedClient);
-
-        // Validar datos requeridos
-        if (!file || !stationId || !parameterId) {
-            return res.status(400).json({
-                success: false,
-                message: "Faltan datos requeridos",
-            });
-        }
-
-        // Leer archivo Excel
-        const workbook = XLSX.read(file.buffer, { type: "buffer" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(worksheet);
-
-        // Procesar datos
-        const processedData = data.map((row) => {
-            try {
-                console.log("📄 Procesando fila:", row);
-
-                // Procesar fecha
-                let fecha_muestra;
-                if (typeof row.fecha_muestra === "string") {
-                    const [day, month, year] = row.fecha_muestra.split("/");
-                    fecha_muestra = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-                } else if (typeof row.fecha_muestra === "number") {
-                    // Convertir fecha de Excel (número serial) a fecha real
-                    const excelDate = new Date((row.fecha_muestra - 25569) * 86400 * 1000);
-                    fecha_muestra = excelDate.toISOString().split("T")[0];
-                }
-
-                // Procesar hora
-                let horaFormatted;
-                if (typeof row.hora_muestra === "string") {
-                    let hora = row.hora_muestra.toLowerCase();
-                    let [hours, minutes] = hora.split(":");
-                    hours = parseInt(hours);
-
-                    if (hora.includes("p. m.") && hours !== 12) {
-                        hours += 12;
-                    } else if (hora.includes("a. m.") && hours === 12) {
-                        hours = 0;
-                    }
-
-                    horaFormatted = `${hours.toString().padStart(2, "0")}:${minutes.split(" ")[0]}:00`;
-                } else {
-                    // Si es un número de Excel (serial date)
-                    const horaExcel = XLSX.SSF.parse_date_code(row.hora_muestra);
-                    horaFormatted = `${horaExcel.H.toString().padStart(2, "0")}:${horaExcel.M.toString().padStart(2, "0")}:00`;
-                }
-
-                // Procesar tiempo_muestreo
-                const tiempo_muestreo =
-                    typeof row.tiempo_muestreo === "string" ? parseFloat(row.tiempo_muestreo.replace(",", ".")) : parseFloat(row.tiempo_muestreo);
-
-                // Procesar valores numéricos
-                const concentracion = parseFloat(row.concentracion) || 0;
-                const u = parseFloat(row.u) || 0;
-                const u_factor_cobertura = parseFloat(row.u_factor_cobertura) || 0;
-
-                return [
-                    stationId,
-                    normaId, // Usar el ID real de la norma
-                    row.muestra?.toString() || "",
-                    fecha_muestra, // Fecha del Excel
-                    horaFormatted,
-                    tiempo_muestreo,
-                    concentracion,
-                    u,
-                    u_factor_cobertura,
-                    fecha_inicio_muestra, // Fecha del calendario
-                ];
-            } catch (error) {
-                console.error("❌ Error procesando fila:", {
-                    error: error.message,
-                    datos: row,
-                });
-                throw new Error(`Error en fila ${JSON.stringify(row)}: ${error.message}`);
-            }
-        });
-
-        // Insertar en la base de datos
-        const [result] = await db.query(
-            `INSERT INTO mediciones_aire 
-            (id_estacion, id_norma, muestra, fecha_muestra, hora_muestra, 
-             tiempo_muestreo, concentracion, u, u_factor_cobertura, fecha_inicio_muestra) 
-            VALUES ?`,
-            [processedData],
+        // 1. Crear la estación
+        await connection.query(
+            `INSERT IGNORE INTO estaciones (id_estacion, nombre_estacion, id_usuario)
+             VALUES (?, ?, ?)`,
+            [stationId, `Estación ${stationId}`, selectedClient],
         );
 
-        console.log("✅ Datos insertados:", {
-            registros: result.affectedRows,
-            estacion: stationId,
-            parametro: parameterId,
+        // 2. Crear o actualizar norma
+        const [normaResult] = await connection.query(
+            `INSERT INTO normas (parametro, valor_limite, unidad, id_usuario, periodo_medicion)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE id_norma = LAST_INSERT_ID(id_norma)`,
+            [parameterId, 75, "µg/m³", selectedClient, "24h"],
+        );
+
+        const normaId = normaResult.insertId;
+
+        // 3. Procesar archivo CSV/Excel
+        const workbook = XLSX.read(file.buffer, { type: "buffer" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+        // 4. Procesar cada fila
+        const processedData = data.map((row) => {
+            const { fecha, hora } = parseFechaHora(row.fecha_muestra, row.hora_muestra);
+
+            return [
+                stationId,
+                normaId,
+                row.muestra,
+                fecha,
+                hora,
+                parseFloat(row.tiempo_muestreo.replace(",", ".")),
+                parseFloat(row.concentracion.replace(",", ".")),
+                parseFloat(row.u.replace(",", ".")),
+                parseFloat(row.u_factor_cobertura.replace(",", ".")),
+                fecha_inicio_muestra,
+            ];
         });
+
+        // 5. Insertar mediciones
+        if (processedData.length > 0) {
+            await connection.query(
+                `INSERT INTO mediciones_aire 
+                 (id_estacion, id_norma, muestra, fecha_muestra, hora_muestra,
+                  tiempo_muestreo, concentracion, u, u_factor_cobertura, fecha_inicio_muestra)
+                 VALUES ?`,
+                [processedData],
+            );
+        }
+
+        await connection.commit();
+        console.log(`✅ Se procesaron ${processedData.length} mediciones`);
 
         res.json({
             success: true,
-            message: "Mediciones guardadas exitosamente",
-            data: {
-                registrosInsertados: result.affectedRows,
-            },
+            message: `Datos procesados exitosamente: ${processedData.length} registros`,
         });
     } catch (error) {
+        await connection.rollback();
         console.error("❌ Error al procesar archivo:", error);
         res.status(500).json({
             success: false,
-            message: "Error al procesar el archivo: " + error.message,
-            details: error.stack,
+            message: error.message,
         });
+    } finally {
+        connection.release();
+    }
+});
+
+// En la ruta de carga de mediciones
+router.post("/measurements/upload", authMiddleware, async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // Crear o actualizar norma
+        await createOrUpdateNorma(connection, req.body.parameterId, req.body.selectedClient);
+
+        // Crear o verificar estación
+        await createOrVerifyStation(connection, req.body.stationId, req.body.selectedClient, `Estación ${req.body.stationId}`);
+
+        // ... resto del código para procesar mediciones ...
+
+        await connection.commit();
+        res.json({ success: true });
+    } catch (error) {
+        await connection.rollback();
+        console.error("❌ Error al procesar archivo:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    } finally {
+        connection.release();
     }
 });
 

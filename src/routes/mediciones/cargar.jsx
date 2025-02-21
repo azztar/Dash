@@ -59,7 +59,7 @@ const DataUploadPage = () => {
     const loadStations = async (clientId) => {
         try {
             setLoading(true);
-            // Estaciones predeterminadas
+            // Estaciones predeterminadas que se usarán siempre
             const defaultStations = [
                 { id_estacion: "1", nombre_estacion: "Estación 1" },
                 { id_estacion: "2", nombre_estacion: "Estación 2" },
@@ -67,24 +67,7 @@ const DataUploadPage = () => {
                 { id_estacion: "4", nombre_estacion: "Estación 4" },
             ];
 
-            try {
-                const response = await fetch(`${API_URL}/api/clients/${clientId}/stations`, {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    },
-                });
-                const data = await response.json();
-
-                if (data.success && data.data.length > 0) {
-                    setStations(data.data);
-                } else {
-                    // Si no hay estaciones en la BD o hay error, usar las predeterminadas
-                    setStations(defaultStations);
-                }
-            } catch (error) {
-                console.log("Usando estaciones predeterminadas:", error);
-                setStations(defaultStations);
-            }
+            setStations(defaultStations);
         } catch (error) {
             console.error("Error al cargar estaciones:", error);
             setStations([]);
