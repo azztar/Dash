@@ -6,6 +6,7 @@ const airQualityRoutes = require("./routes/airQualityRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const measurementRoutes = require("./routes/measurementRoutes");
 const stationRoutes = require("./routes/stationRoutes");
+const declarationRoutes = require("./routes/declarationRoutes");
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/air-quality", airQualityRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/stations", stationRoutes);
 app.use("/api/measurements", measurementRoutes);
+app.use("/api/declarations", declarationRoutes);
 
 // Manejador de errores mejorado con más detalles
 app.use((err, req, res, next) => {

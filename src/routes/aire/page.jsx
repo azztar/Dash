@@ -5,7 +5,7 @@ import { es } from "date-fns/locale";
 import { useAirQuality } from "./hooks/useAirQuality";
 import { StationSelector } from "./components/StationSelector";
 import { ParameterSelector } from "./components/ParameterSelector";
-import { DateSelector } from "../../components/DateSelector";
+import { AirQualityDateSelector } from "@/components/AirQualityDateSelector";
 import { MeasurementsTable } from "./components/MeasurementsTable";
 import { AirQualityChart } from "./components/AirQualityChart";
 import { ConformityTable } from "./components/ConformityTable";
@@ -190,7 +190,7 @@ const AirePage = () => {
                     <h2 className="mb-4 text-xl font-semibold">
                         Fechas disponibles para {selectedStation.nombre_estacion} - {selectedNorm}
                     </h2>
-                    <DateSelector
+                    <AirQualityDateSelector
                         key={`${selectedStation.id_estacion}-${selectedNorm}`} // Forzar remontaje al cambiar selección
                         selectedDate={selectedDate}
                         onSelect={handleDateSelect}

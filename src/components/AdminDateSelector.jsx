@@ -1,5 +1,6 @@
 import React from "react";
-import DatePicker, { registerLocale } from "react-datepicker";
+import DatePicker from "react-datepicker"; // Cambiar esta importación
+import { registerLocale } from "react-datepicker"; // Agregar esta importación
 import { es } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
 

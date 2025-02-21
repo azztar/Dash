@@ -3,7 +3,8 @@ import { format, parseISO, isValid } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card } from "@tremor/react";
 
-export const DateSelector = ({ selectedDate, onSelect, availableDates = [], loading = false, error = null }) => {
+// Renombrar el componente
+export const AirQualityDateSelector = ({ selectedDate, onSelect, availableDates = [], loading = false, error = null }) => {
     // Validar y formatear fechas
     const validDates = useMemo(() => {
         console.log("📅 Procesando fechas recibidas:", availableDates);

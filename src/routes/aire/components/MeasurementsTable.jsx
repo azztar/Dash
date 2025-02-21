@@ -1,59 +1,42 @@
 import React from "react";
 import { Card } from "@tremor/react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export const MeasurementsTable = ({ data }) => {
-    // Validación de datos y mensaje por defecto
     if (!data?.data || !Array.isArray(data.data)) {
-        console.warn("MeasurementsTable: datos inválidos", data);
-        return (
-            <Card>
-                <div className="p-4 text-center">
-                    <p className="text-gray-500">No hay datos disponibles</p>
-                </div>
-            </Card>
-        );
-    }
-
-    const measurements = data.data;
-
-    if (measurements.length === 0) {
-        return (
-            <Card>
-                <div className="p-4 text-center">
-                    <p className="text-gray-500">No hay mediciones para mostrar</p>
-                </div>
-            </Card>
-        );
+        return null;
     }
 
     return (
         <Card>
+            <h2 className="mb-4 text-lg font-semibold">Mediciones</h2>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Hora</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Medición</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Estado</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Muestra</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Fecha</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Hora</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Tiempo Muestreo</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Concentración</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">U</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Factor Cobertura</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                        {measurements.map((measurement) => (
-                            <tr key={measurement.id_medicion_aire}>
-                                <td className="whitespace-nowrap px-6 py-4">{format(new Date(measurement.fecha_inicio_muestra), "HH:mm")}</td>
-                                <td className="whitespace-nowrap px-6 py-4">
-                                    {measurement.valor_medicion} {measurement.unidad}
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4">
-                                    <span
-                                        className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                                            measurement.estado === "Cumple" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                                        }`}
-                                    >
-                                        {measurement.estado}
-                                    </span>
-                                </td>
+                    <tbody>
+                        {data.data.map((measurement, index) => (
+                            <tr
+                                key={index}
+                                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                            >
+                                <td className="px-6 py-4">{measurement.muestra}</td>
+                                <td className="px-6 py-4">{measurement.fecha_muestra}</td>
+                                <td className="px-6 py-4">{measurement.hora_muestra}</td>
+                                <td className="px-6 py-4">{measurement.tiempo_muestreo}</td>
+                                <td className="px-6 py-4">{measurement.concentracion}</td>
+                                <td className="px-6 py-4">{measurement.u}</td>
+                                <td className="px-6 py-4">{measurement.u_factor_cobertura}</td>
                             </tr>
                         ))}
                     </tbody>

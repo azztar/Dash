@@ -1,64 +1,72 @@
 import React from "react";
 import { Card } from "@tremor/react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { useTheme } from "@/hooks/use-theme";
-import { format } from "date-fns"; // Agregar esta importación
-import { es } from "date-fns/locale"; // También necesitaremos esto para el formato en español
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
 
-export const AirQualityChart = ({ data }) => {
-    // Validación de datos
+export const AirQualityChart = ({ data, parameterName }) => {
     if (!data?.data || !Array.isArray(data.data)) {
-        console.warn("AirQualityChart: datos inválidos", data);
         return null;
     }
 
-    const { theme } = useTheme();
-    const measurements = data.data;
-
-    if (measurements.length === 0) {
-        return (
-            <div className="p-4 text-center">
-                <p className="text-gray-500">No hay datos para visualizar</p>
-            </div>
-        );
-    }
-
-    // Preparar datos para el gráfico
-    const chartData = measurements.map((m) => ({
-        hora: format(new Date(m.fecha_inicio_muestra), "HH:mm"),
-        valor: parseFloat(m.valor_medicion),
-        limite: parseFloat(m.valor_limite),
+    // Asegurarse que los valores son números válidos
+    const chartData = data.data.map((measurement) => ({
+        hora: measurement.hora_muestra || "",
+        concentracion: parseFloat(measurement.concentracion) || 0,
+        muestra: measurement.muestra || "",
+        limite: parseFloat(data.conformity?.[0]?.norma_ugm3) || 0,
     }));
 
+    // Configuración personalizada del tooltip
+    const CustomTooltip = ({ active, payload }) => {
+        if (!active || !payload?.length) return null;
+
+        return (
+            <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                <p className="font-semibold text-gray-900">Muestra: {payload[0].payload.muestra}</p>
+                <p className="text-sm text-gray-600">Hora: {payload[0].payload.hora}</p>
+                <p className="text-sm text-blue-600">Concentración: {payload[0].value.toFixed(2)} µg/m³</p>
+            </div>
+        );
+    };
+
     return (
-        <Card className="mt-6">
-            <h2 className="mb-4 text-lg font-semibold">Concentración vs Tiempo</h2>
-            <ResponsiveContainer
-                width="100%"
-                height={300}
-            >
-                <AreaChart data={chartData}>
-                    <XAxis
-                        dataKey="fecha"
-                        tickFormatter={(date) => new Date(date).toLocaleDateString("es-ES")}
-                        stroke={theme === "light" ? "#6B7280" : "#9CA3AF"}
-                    />
-                    <YAxis stroke={theme === "light" ? "#6B7280" : "#9CA3AF"} />
-                    <Tooltip />
-                    <ReferenceLine
-                        y={75}
-                        stroke="red"
-                        strokeDasharray="3 3"
-                        label="Norma"
-                    />
-                    <Area
-                        type="monotone"
-                        dataKey="concentracion"
-                        stroke={theme === "light" ? "#3b82f6" : "#60a5fa"}
-                        fill={theme === "light" ? "#3b82f6" : "#60a5fa"}
-                    />
-                </AreaChart>
-            </ResponsiveContainer>
+        <Card>
+            <div className="mb-4">
+                <h2 className="text-lg font-semibold">Concentración de {parameterName}</h2>
+                <p className="text-sm text-gray-500">Valores medidos durante el período de muestreo</p>
+            </div>
+            <div className="h-[400px] w-full">
+                <ResponsiveContainer>
+                    <AreaChart data={chartData}>
+                        <XAxis
+                            dataKey="hora"
+                            tickFormatter={(value) => value.split(":")[0] + "h"}
+                        />
+                        <YAxis
+                            label={{
+                                value: "µg/m³",
+                                angle: -90,
+                                position: "insideLeft",
+                            }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area
+                            type="monotone"
+                            dataKey="concentracion"
+                            stroke="#3b82f6"
+                            fill="#93c5fd"
+                            strokeWidth={2}
+                        />
+                        {chartData[0]?.limite > 0 && (
+                            <ReferenceLine
+                                y={chartData[0].limite}
+                                label="Límite normativo"
+                                stroke="#ef4444"
+                                strokeDasharray="3 3"
+                            />
+                        )}
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </Card>
     );
 };

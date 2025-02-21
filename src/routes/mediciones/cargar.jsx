@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Select, SelectItem } from "@tremor/react";
+// Usar el DatePicker genérico para el formulario de carga
+import DatePicker from "@/components/DatePicker";
 import { es } from "date-fns/locale";
 import { clientService } from "@/services/clientService";
 import { Upload } from "lucide-react";
@@ -27,6 +29,7 @@ const DataUploadPage = () => {
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState(null);
     const [stations, setStations] = useState([]);
+    const [declarationFile, setDeclarationFile] = useState(null);
 
     useEffect(() => {
         loadClients();
@@ -56,25 +59,31 @@ const DataUploadPage = () => {
     const loadStations = async (clientId) => {
         try {
             setLoading(true);
-            const response = await fetch(`/api/clients/${clientId}/stations`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-            });
-            const data = await response.json();
+            // Estaciones predeterminadas
+            const defaultStations = [
+                { id_estacion: "1", nombre_estacion: "Estación 1" },
+                { id_estacion: "2", nombre_estacion: "Estación 2" },
+                { id_estacion: "3", nombre_estacion: "Estación 3" },
+                { id_estacion: "4", nombre_estacion: "Estación 4" },
+            ];
 
-            if (data.success) {
-                // Si no hay estaciones, crear las predeterminadas
-                if (data.data.length === 0) {
-                    setStations([
-                        { id_estacion: "1", nombre_estacion: "Estación 1" },
-                        { id_estacion: "2", nombre_estacion: "Estación 2" },
-                        { id_estacion: "3", nombre_estacion: "Estación 3" },
-                        { id_estacion: "4", nombre_estacion: "Estación 4" },
-                    ]);
-                } else {
+            try {
+                const response = await fetch(`${API_URL}/api/clients/${clientId}/stations`, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                });
+                const data = await response.json();
+
+                if (data.success && data.data.length > 0) {
                     setStations(data.data);
+                } else {
+                    // Si no hay estaciones en la BD o hay error, usar las predeterminadas
+                    setStations(defaultStations);
                 }
+            } catch (error) {
+                console.log("Usando estaciones predeterminadas:", error);
+                setStations(defaultStations);
             }
         } catch (error) {
             console.error("Error al cargar estaciones:", error);
@@ -91,8 +100,16 @@ const DataUploadPage = () => {
         }
     };
 
+    const handleDeclarationFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setDeclarationFile(file);
+        }
+    };
+
     const resetForm = () => {
         setFile(null);
+        setDeclarationFile(null);
         setSelectedParameter("");
         setSelectedStation("");
         setSelectedDate(new Date());
@@ -104,26 +121,44 @@ const DataUploadPage = () => {
         setLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("stationId", selectedStation);
-            formData.append("parameterId", selectedParameter);
-            formData.append("selectedClient", selectedClient);
-            // Agregar la fecha del calendario como fecha_inicio_muestra
-            formData.append("fecha_inicio_muestra", selectedDate.toISOString().split("T")[0]);
+            // Primero cargar mediciones
+            const medicionesFormData = new FormData();
+            medicionesFormData.append("file", file);
+            medicionesFormData.append("stationId", selectedStation);
+            medicionesFormData.append("parameterId", selectedParameter);
+            medicionesFormData.append("selectedClient", selectedClient);
+            medicionesFormData.append("fecha_inicio_muestra", selectedDate.toISOString().split("T")[0]);
 
-            const token = localStorage.getItem("token");
-            const response = await axios.post(`${API_URL}/api/measurements/upload`, formData, {
+            const medicionesResponse = await axios.post(`${API_URL}/api/measurements/upload`, medicionesFormData, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
                     "Content-Type": "multipart/form-data",
                 },
             });
 
-            if (response.data.success) {
-                toast.success("Datos cargados exitosamente");
-                resetForm();
+            if (medicionesResponse.data.success && declarationFile) {
+                // Si hay archivo de declaraciones, cargarlo
+                const declaracionesFormData = new FormData();
+                declaracionesFormData.append("file", declarationFile);
+                declaracionesFormData.append("stationId", selectedStation);
+                declaracionesFormData.append("parameterId", selectedParameter);
+                declaracionesFormData.append("selectedClient", selectedClient);
+                declaracionesFormData.append("fecha", selectedDate.toISOString().split("T")[0]);
+
+                const declaracionesResponse = await axios.post(`${API_URL}/api/declarations/upload`, declaracionesFormData, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                        "Content-Type": "multipart/form-data",
+                    },
+                });
+
+                if (declaracionesResponse.data.success) {
+                    toast.success("Mediciones y declaraciones cargadas exitosamente");
+                }
+            } else {
+                toast.success("Mediciones cargadas exitosamente");
             }
+            resetForm();
         } catch (error) {
             console.error("Error al cargar datos:", error);
             toast.error(error.response?.data?.message || "Error al cargar los datos");
@@ -134,7 +169,7 @@ const DataUploadPage = () => {
 
     return (
         <div className="p-6">
-            <h1 className="mb-8 text-2xl font-bold">Carga de Mediciones</h1>
+            <h1 className="mb-8 text-2xl font-bold">Carga de Mediciones y Declaraciones</h1>
 
             <form onSubmit={handleSubmit}>
                 <Card className="space-y-8">
@@ -233,16 +268,17 @@ const DataUploadPage = () => {
                         </div>
                         {/* Carga de Archivo */}
                         <div className="space-y-6">
-                            <h2 className="text-lg font-semibold text-gray-900">Archivo de Datos</h2>
-                            <div className="relative z-0">
-                                {" "}
-                                {/* Menor z-index para esta sección */}
-                                <div className="flex w-full items-center justify-center">
+                            <h2 className="text-lg font-semibold text-gray-900">Archivos de Datos</h2>
+
+                            {/* Archivo de Mediciones */}
+                            <div className="space-y-4">
+                                <h3 className="text-md font-medium text-gray-700">Mediciones</h3>
+                                <div className="relative z-0">
                                     <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
                                         <div className="flex flex-col items-center justify-center pb-6 pt-5">
                                             <Upload className="mb-3 h-8 w-8 text-gray-400" />
                                             <p className="mb-2 text-sm text-gray-500">
-                                                <span className="font-semibold">Click para seleccionar</span> o arrastrar y soltar
+                                                <span className="font-semibold">Click para seleccionar archivo de mediciones</span>
                                             </p>
                                             <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
                                         </div>
@@ -254,8 +290,34 @@ const DataUploadPage = () => {
                                             disabled={loading}
                                         />
                                     </label>
+                                    {file && <p className="mt-2 text-sm text-gray-500">Archivo de mediciones: {file.name}</p>}
                                 </div>
-                                {file && <p className="mt-2 text-sm text-gray-500">Archivo seleccionado: {file.name}</p>}
+                            </div>
+
+                            {/* Archivo de Declaraciones */}
+                            <div className="space-y-4">
+                                <h3 className="text-md font-medium text-gray-700">Declaraciones de Conformidad</h3>
+                                <div className="relative z-0">
+                                    <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
+                                        <div className="flex flex-col items-center justify-center pb-6 pt-5">
+                                            <Upload className="mb-3 h-8 w-8 text-gray-400" />
+                                            <p className="mb-2 text-sm text-gray-500">
+                                                <span className="font-semibold">Click para seleccionar archivo de declaraciones</span>
+                                            </p>
+                                            <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
+                                        </div>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            accept=".xlsx,.xls"
+                                            onChange={handleDeclarationFileUpload}
+                                            disabled={loading}
+                                        />
+                                    </label>
+                                    {declarationFile && (
+                                        <p className="mt-2 text-sm text-gray-500">Archivo de declaraciones: {declarationFile.name}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
