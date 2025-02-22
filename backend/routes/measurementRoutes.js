@@ -97,26 +97,62 @@ const createOrVerifyStation = async (connection, stationId, clientId, stationNam
 };
 
 // Ruta para obtener fechas disponibles
-router.get("/dates", async (req, res) => {
-    // Cambiar /measurements/dates a /dates
-    try {
-        const { stationId, parameterId } = req.query;
+router.get("/available-dates", authMiddleware, async (req, res) => {
+    const { stationId, parametro } = req.query;
+    const userId = req.user.id;
 
-        if (!stationId || !parameterId) {
-            return res.status(400).json({
-                success: false,
-                message: "Se requieren estación y parámetro",
+    try {
+        // Primero verificar si existe la norma
+        const [norma] = await db.query(
+            `SELECT id_norma 
+             FROM normas 
+             WHERE parametro = ? 
+             AND id_usuario = ?`,
+            [parametro, userId],
+        );
+
+        if (norma.length === 0) {
+            return res.json({
+                success: true,
+                dates: [],
+                metadata: {
+                    total: 0,
+                    parametro,
+                    estacion: stationId,
+                    mensaje: "No existe norma para este parámetro",
+                },
             });
         }
 
-        const result = await getAvailableDates(stationId, parameterId);
-        res.json(result);
+        // Si existe la norma, buscar las fechas
+        const [dates] = await db.query(
+            `SELECT DISTINCT ma.fecha_inicio_muestra 
+             FROM mediciones_aire ma
+             JOIN normas n ON ma.id_norma = n.id_norma
+             WHERE ma.id_estacion = ?
+             AND n.parametro = ?
+             AND n.id_usuario = ?
+             ORDER BY ma.fecha_inicio_muestra DESC`,
+            [stationId, parametro, userId],
+        );
+
+        console.log(`✨ Fechas encontradas:`, dates);
+
+        res.json({
+            success: true,
+            dates: dates.map((d) => d.fecha_inicio_muestra),
+            metadata: {
+                total: dates.length,
+                parametro,
+                estacion: stationId,
+                usuario: userId,
+            },
+        });
     } catch (error) {
         console.error("❌ Error al obtener fechas:", error);
         res.status(500).json({
             success: false,
-            message: "Error al obtener fechas disponibles",
-            error: error.message,
+            message: error.message,
         });
     }
 });
@@ -249,6 +285,83 @@ router.post("/measurements/upload", authMiddleware, async (req, res) => {
         });
     } finally {
         connection.release();
+    }
+});
+
+router.get("/parameters/:stationId", authMiddleware, async (req, res) => {
+    const { stationId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const [parameters] = await db.query(
+            `SELECT DISTINCT n.parametro 
+             FROM normas n
+             JOIN mediciones_aire ma ON ma.id_norma = n.id_norma
+             WHERE ma.id_estacion = ?
+             AND n.id_usuario = ?`,
+            [stationId, userId],
+        );
+
+        res.json({
+            success: true,
+            parameters: parameters.map((p) => p.parametro),
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+});
+
+router.get("/measurements", authMiddleware, async (req, res) => {
+    const { stationId, parameterId, date } = req.query;
+    const userId = req.user.id;
+
+    console.log("📊 Consultando mediciones:", { stationId, parameterId, date });
+
+    try {
+        // 1. Obtener mediciones
+        const [mediciones] = await db.query(
+            `SELECT ma.*, n.parametro, n.valor_limite, n.unidad
+             FROM mediciones_aire ma
+             JOIN normas n ON ma.id_norma = n.id_norma
+             WHERE ma.id_estacion = ?
+             AND n.parametro = ?
+             AND DATE(ma.fecha_inicio_muestra) = DATE(?)
+             AND n.id_usuario = ?`,
+            [stationId, parameterId, date, userId],
+        );
+
+        // 2. Obtener declaración de conformidad
+        const [declaracion] = await db.query(
+            `SELECT dc.*
+             FROM declaraciones_conformidad dc
+             JOIN mediciones_aire ma ON dc.id_medicion = ma.id_medicion_aire
+             WHERE ma.id_estacion = ? 
+             AND DATE(ma.fecha_inicio_muestra) = DATE(?)`,
+            [stationId, date],
+        );
+
+        // 3. Enviar respuesta combinada
+        res.json({
+            success: true,
+            data: mediciones,
+            metadata: {
+                total: mediciones.length,
+                declaracionConformidad: declaracion[0] || null,
+                fecha: date,
+                estacion: stationId,
+                parametro: parameterId,
+            },
+        });
+    } catch (error) {
+        console.error("❌ Error al obtener mediciones:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error al obtener las mediciones",
+            error: error.message,
+        });
     }
 });
 

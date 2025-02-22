@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@tremor/react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatInTimeZone } from "date-fns-tz";
 import { useAirQuality } from "./hooks/useAirQuality";
 import { StationSelector } from "./components/StationSelector";
 import { ParameterSelector } from "./components/ParameterSelector";
@@ -36,7 +37,7 @@ const AirePage = () => {
             currentStep,
             estacion: selectedStation?.nombre_estacion,
             parametro: selectedNorm,
-            fecha: selectedDate ? format(new Date(selectedDate), "d 'de' MMMM yyyy", { locale: es }) : null,
+            fecha: selectedDate ? formatInTimeZone(selectedDate, "America/Bogota", "d 'de' MMMM yyyy", { locale: es }) : null,
             fechasDisponibles: availableDates?.length || 0,
             loading,
             error,
@@ -218,6 +219,7 @@ const AirePage = () => {
                             title="Sin mediciones"
                             message="No hay datos disponibles para la fecha seleccionada"
                             suggestion="Por favor, seleccione otra fecha"
+                            onBack={() => setCurrentStep(3)}
                         />
                     ) : (
                         <>

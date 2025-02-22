@@ -1,21 +1,45 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@tremor/react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const ParameterSelector = ({ selectedStation, selectedNorm, onSelect }) => {
-    const getParametros = (estacionId) => {
-        const parametrosPorEstacion = {
-            1: [{ id: "SO2", name: "SO2", descripcion: "Dióxido de Azufre" }],
-            10: [{ id: "PM2.5", name: "PM2.5", descripcion: "Material Particulado 2.5" }],
-            7: [],
-            8: [],
+    const { token } = useAuth();
+    const [parametrosDisponibles, setParametrosDisponibles] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchParametros = async () => {
+            if (!selectedStation?.id_estacion) return;
+
+            setLoading(true);
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/measurements/parameters/${selectedStation.id_estacion}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                const data = await response.json();
+                if (data.success) {
+                    setParametrosDisponibles(data.parameters);
+                }
+            } catch (error) {
+                console.error("Error al cargar parámetros:", error);
+                setError("Error al cargar los parámetros");
+            } finally {
+                setLoading(false);
+            }
         };
 
-        return parametrosPorEstacion[estacionId] || [];
-    };
+        fetchParametros();
+    }, [selectedStation, token]);
 
+    // Debug log mejorado
     console.log("Estado ParameterSelector:", {
         estacionId: selectedStation?.id_estacion,
-        parametrosDisponibles: selectedStation ? getParametros(selectedStation.id_estacion) : [],
+        parametrosDisponibles,
+        loading,
+        error,
     });
 
     if (!selectedStation) {
@@ -26,7 +50,22 @@ export const ParameterSelector = ({ selectedStation, selectedNorm, onSelect }) =
         );
     }
 
-    const parametrosDisponibles = getParametros(selectedStation.id_estacion);
+    if (loading) {
+        return (
+            <div className="rounded-lg border border-gray-200 p-6 text-center">
+                <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+                <p className="text-gray-500">Cargando parámetros...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+                <p className="text-red-500">{error}</p>
+            </div>
+        );
+    }
 
     if (parametrosDisponibles.length === 0) {
         return (
@@ -38,17 +77,16 @@ export const ParameterSelector = ({ selectedStation, selectedNorm, onSelect }) =
 
     return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {parametrosDisponibles.map((param) => (
+            {parametrosDisponibles.map((parametro) => (
                 <Card
-                    key={param.id}
-                    onClick={() => onSelect(param.id)}
+                    key={parametro}
+                    onClick={() => onSelect(parametro)}
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedNorm === param.id ? "border-2 border-blue-500 bg-blue-50" : "hover:border-gray-300"
+                        selectedNorm === parametro ? "border-2 border-blue-500 bg-blue-50" : "hover:border-gray-300"
                     }`}
                 >
                     <div className="space-y-2 p-4">
-                        <h3 className="text-lg font-semibold">{param.name}</h3>
-                        <p className="text-sm text-gray-500">{param.descripcion}</p>
+                        <h3 className="text-lg font-semibold">{parametro}</h3>
                     </div>
                 </Card>
             ))}
