@@ -42,65 +42,66 @@ const getMeasurements = async (req, res) => {
     try {
         const { stationId, parameterId, date } = req.query;
 
-        console.log("📊 Parámetros recibidos:", { stationId, parameterId, date });
+        console.log("📊 Consultando mediciones:", { stationId, parameterId, date });
 
-        // Validar parámetros
-        if (!stationId || !parameterId || !date) {
-            return res.status(400).json({
-                success: false,
-                message: "Faltan parámetros requeridos",
-            });
-        }
-
-        // Consulta de mediciones
+        // Consulta principal de mediciones con ORDER BY DESC
         const [measurements] = await pool.query(
             `SELECT 
                 ma.id_medicion_aire,
                 ma.muestra,
-                ma.fecha_inicio_muestra,
-                ma.hora_muestra,
+                DATE_FORMAT(ma.fecha_muestra, '%d/%m/%Y') as fecha_muestra,
+                TIME_FORMAT(ma.hora_muestra, '%l:%i:%s %p') as hora_muestra,
                 ma.tiempo_muestreo,
-                ma.concentracion,
-                ma.u,
-                ma.u_factor_cobertura,
+                REPLACE(CAST(ma.concentracion AS DECIMAL(10,2)), '.', ',') as concentracion,
+                REPLACE(CAST(ma.u AS DECIMAL(10,4)), '.', ',') as u,
+                REPLACE(CAST(ma.u_factor_cobertura AS DECIMAL(10,2)), '.', ',') as u_factor_cobertura,
+                n.parametro,
+                n.valor_limite,
                 n.unidad
-            FROM mediciones_aire ma
-            JOIN normas n ON ma.id_norma = n.id_norma
-            WHERE ma.id_estacion = ?
-            AND n.parametro = ?
-            AND DATE(ma.fecha_inicio_muestra) = DATE(?)
-            ORDER BY ma.hora_muestra ASC`,
+             FROM mediciones_aire ma
+             JOIN normas n ON ma.id_norma = n.id_norma
+             WHERE ma.id_estacion = ? 
+             AND n.parametro = ?
+             AND DATE(ma.fecha_inicio_muestra) = ?
+             ORDER BY CAST(SUBSTRING_INDEX(ma.muestra, '.', -1) AS SIGNED) DESC`,
             [stationId, parameterId, date],
         );
 
         // Consulta de declaración de conformidad
         const [declaracion] = await pool.query(
-            `SELECT *
-            FROM declaraciones_conformidad
-            WHERE id_medicion IN (
-                SELECT id_medicion_aire
-                FROM mediciones_aire
-                WHERE id_estacion = ?
-                AND DATE(fecha_inicio_muestra) = DATE(?)
-            )
-            LIMIT 1`,
+            `SELECT * 
+             FROM declaraciones_conformidad dc
+             JOIN mediciones_aire ma ON dc.id_medicion = ma.id_medicion_aire
+             WHERE ma.id_estacion = ? 
+             AND DATE(ma.fecha_inicio_muestra) = DATE(?)
+             LIMIT 1`,
             [stationId, date],
+        );
+
+        // Log para depuración
+        console.log(
+            "📅 Fechas de mediciones:",
+            measurements.map((m) => m.fecha_muestra),
         );
 
         res.json({
             success: true,
             data: measurements,
             metadata: {
-                declaracionConformidad: declaracion[0] || null,
                 total: measurements.length,
+                declaracionConformidad: declaracion[0] || null,
+                norma: {
+                    parametro: parameterId,
+                    valor_limite: measurements[0]?.valor_limite,
+                    unidad: measurements[0]?.unidad,
+                },
             },
         });
     } catch (error) {
-        console.error("❌ Error en getMeasurements:", error);
+        console.error("❌ Error:", error);
         res.status(500).json({
             success: false,
-            message: "Error interno del servidor",
-            error: error.message,
+            message: "Error al obtener mediciones",
         });
     }
 };
