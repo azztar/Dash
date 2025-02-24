@@ -108,50 +108,85 @@ export const useAirQuality = () => {
         }
 
         try {
-            const dateObject = date instanceof Date ? date : new Date(date);
+            // Convertir a fecha si es string
+            const dateObject = typeof date === "string" ? new Date(date) : date;
+
+            if (!isValid(dateObject)) {
+                throw new Error("Fecha inválida");
+            }
+
             const formattedDate = format(dateObject, "yyyy-MM-dd");
+            console.log("✅ Fecha formateada:", formattedDate);
 
-            console.log("✅ Fecha procesada correctamente:", formattedDate);
             setSelectedDate(dateObject);
-
-            // Cargar mediciones solo después de seleccionar la fecha
             await loadMeasurements(formattedDate);
 
-            // Avanzar al siguiente paso solo si hay datos
-            if (data?.data?.length > 0) {
-                setCurrentStep(4);
-            }
+            setCurrentStep(4);
         } catch (error) {
             console.error("❌ Error procesando fecha:", error);
-            setError("Error al procesar la fecha seleccionada");
+            setError(`Error: ${error.message}`);
         }
     };
 
     const loadMeasurements = async (date) => {
-        if (!selectedStation?.id_estacion || !selectedNorm || !date) return;
+        if (!selectedStation?.id_estacion || !selectedNorm || !date) {
+            console.log("❌ Faltan datos requeridos:", {
+                estacion: selectedStation?.id_estacion,
+                norma: selectedNorm,
+                fecha: date,
+            });
+            return;
+        }
 
         setLoading((prev) => ({ ...prev, measurements: true }));
+
         try {
+            const formattedDate = typeof date === "string" ? date : format(date, "yyyy-MM-dd");
+
+            console.log("📊 Consultando mediciones:", {
+                estacion: selectedStation.id_estacion,
+                parametro: selectedNorm,
+                fecha: formattedDate,
+            });
+
+            // Corrección: Agregar /api/ en la URL
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/measurements?stationId=${selectedStation.id_estacion}&parameterId=${selectedNorm}&date=${date}`,
+                `${API_URL}/api/measurements?` +
+                    `stationId=${selectedStation.id_estacion}&` +
+                    `parameterId=${selectedNorm}&` +
+                    `date=${formattedDate}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
                     },
                 },
             );
+
+            if (!response.ok) {
+                console.error("🔴 Error en la respuesta:", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url,
+                });
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
             const result = await response.json();
 
-            if (result.success && result.data.length > 0) {
+            if (result.success) {
+                console.log("✅ Datos recibidos:", {
+                    mediciones: result.data.length,
+                    declaracion: Boolean(result.metadata?.declaracionConformidad),
+                });
                 setData(result);
                 setError(null);
             } else {
-                setError("No hay mediciones disponibles para la fecha seleccionada");
-                setData(null);
+                throw new Error(result.message || "Error al cargar mediciones");
             }
         } catch (error) {
             console.error("❌ Error cargando mediciones:", error);
-            setError("Error al cargar las mediciones");
+            setError(`Error: ${error.message}`);
             setData(null);
         } finally {
             setLoading((prev) => ({ ...prev, measurements: false }));
