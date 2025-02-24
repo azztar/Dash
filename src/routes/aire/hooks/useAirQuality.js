@@ -69,18 +69,69 @@ export const useAirQuality = () => {
     }, [selectedStation, selectedNorm, token]);
 
     useEffect(() => {
-        if (!selectedStation?.id_estacion || !selectedNorm || !selectedDate) return;
-        setLoading((prev) => ({ ...prev, measurements: true }));
-        fetch(`/api/measurements?stationId=${selectedStation.id_estacion}&parameterId=${selectedNorm}&date=${selectedDate}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.success) setData(data);
-                else setError("Error al obtener mediciones");
-            })
-            .catch(() => setError("Error al cargar mediciones"))
-            .finally(() => setLoading((prev) => ({ ...prev, measurements: false })));
+        if (!selectedStation?.id_estacion || !selectedNorm || !selectedDate) {
+            console.log("⏭️ Saltando consulta - Faltan datos:", {
+                estacion: selectedStation?.id_estacion,
+                parametro: selectedNorm,
+                fecha: selectedDate,
+            });
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const fetchData = async () => {
+            try {
+                setLoading((prev) => ({ ...prev, measurements: true }));
+
+                const formattedDate = format(new Date(selectedDate), "yyyy-MM-dd");
+
+                const response = await fetch(
+                    `${API_URL}/api/measurements?` +
+                        `stationId=${selectedStation.id_estacion}&` +
+                        `parameterId=${selectedNorm}&` +
+                        `date=${formattedDate}`,
+                    {
+                        signal: controller.signal,
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        },
+                    },
+                );
+
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log("✅ Datos recibidos:", {
+                        mediciones: result.data.length,
+                        declaracion: Boolean(result.metadata?.declaracionConformidad),
+                    });
+                    setData(result);
+                    setError(null);
+                } else {
+                    throw new Error(result.message || "Error al cargar mediciones");
+                }
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    console.log("🚫 Petición cancelada");
+                    return;
+                }
+                console.error("❌ Error:", error);
+                setError(error.message);
+                setData(null);
+            } finally {
+                setLoading((prev) => ({ ...prev, measurements: false }));
+            }
+        };
+
+        fetchData();
+
+        return () => {
+            controller.abort();
+        };
     }, [selectedStation, selectedNorm, selectedDate, token]);
 
     const handleStationSelect = (station) => {
@@ -97,34 +148,52 @@ export const useAirQuality = () => {
     };
 
     const handleDateSelect = async (date) => {
-        console.log("🎯 handleDateSelect iniciado:", {
-            fecha: date,
-            tipo: date instanceof Date ? "Date" : typeof date,
-        });
-
+        // Evitar actualizaciones innecesarias
         if (!date) {
-            setSelectedDate(null);
+            console.log("❌ Fecha no válida");
             return;
         }
 
         try {
-            // Convertir a fecha si es string
             const dateObject = typeof date === "string" ? new Date(date) : date;
+            const formattedDate = format(dateObject, "yyyy-MM-dd");
 
-            if (!isValid(dateObject)) {
-                throw new Error("Fecha inválida");
+            // Evitar recargar si ya tenemos los datos
+            if (selectedDate && format(selectedDate, "yyyy-MM-dd") === formattedDate) {
+                console.log("🔄 Datos ya cargados para esta fecha");
+                return;
             }
 
-            const formattedDate = format(dateObject, "yyyy-MM-dd");
-            console.log("✅ Fecha formateada:", formattedDate);
-
             setSelectedDate(dateObject);
-            await loadMeasurements(formattedDate);
-
             setCurrentStep(4);
+            setLoading((prev) => ({ ...prev, measurements: true }));
+
+            const response = await fetch(
+                `${API_URL}/api/measurements?` +
+                    `stationId=${selectedStation.id_estacion}&` +
+                    `parameterId=${selectedNorm}&` +
+                    `date=${formattedDate}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            const result = await response.json();
+            setData(result);
+            setError(null);
         } catch (error) {
-            console.error("❌ Error procesando fecha:", error);
-            setError(`Error: ${error.message}`);
+            console.error("❌ Error:", error);
+            setError("Error al cargar los datos");
+            setData(null);
+        } finally {
+            setLoading((prev) => ({ ...prev, measurements: false }));
         }
     };
 
