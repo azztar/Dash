@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcrypt");
 const { authMiddleware } = require("../middleware/authMiddleware");
 const pool = require("../config/database");
 
@@ -22,8 +23,12 @@ router.get("/", authMiddleware, async (req, res) => {
 router.post("/", authMiddleware, async (req, res) => {
     try {
         const { nombre_usuario, email, contrasena, rol, nombre_empresa, contacto, direccion, nit } = req.body;
-        const hashedPassword = await bcrypt.hash(contrasena, 10);
 
+        // Generar el hash de la contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(contrasena, salt);
+
+        // Crear el usuario con la contraseña hasheada
         const [result] = await pool.query(
             `INSERT INTO usuarios (nombre_usuario, email, contrasena, rol, 
              nombre_empresa, contacto, direccion, nit) 
@@ -37,7 +42,7 @@ router.post("/", authMiddleware, async (req, res) => {
             userId: result.insertId,
         });
     } catch (error) {
-        console.error("❌ Error al crear usuario:", error);
+        console.error("Error al crear usuario:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 });

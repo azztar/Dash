@@ -100,7 +100,7 @@ const AdminPage = () => {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
-                body: JSON.stringify(userData),
+                body: JSON.stringify(userData), // Enviar la contraseña sin hash
             });
 
             if (response.ok) {
