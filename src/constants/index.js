@@ -12,11 +12,6 @@ export const navbarLinks = [
                 path: "/dashboard",
                 icon: LayoutDashboard,
             },
-            {
-                label: "Análisis",
-                path: "/analisis",
-                icon: FileText,
-            },
         ],
     },
     {

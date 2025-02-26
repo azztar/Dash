@@ -16,11 +16,6 @@ const navbarLinks = [
                 path: "/dashboard",
                 icon: LayoutDashboard,
             },
-            {
-                label: "Análisis",
-                path: "/analisis",
-                icon: FileText,
-            },
         ],
     },
     {
@@ -51,6 +46,12 @@ const navbarLinks = [
 ];
 
 export const Sidebar = forwardRef(({ collapsed, user = {} }, ref) => {
+    // Filtrar los enlaces según el rol del usuario
+    const filteredNavbarLinks = navbarLinks.map((section) => ({
+        ...section,
+        links: section.links.filter((link) => (link.label === "Clientes" ? user?.rol === "administrador" || user?.rol === "empleado" : true)),
+    }));
+
     return (
         <aside
             ref={ref}
@@ -74,7 +75,7 @@ export const Sidebar = forwardRef(({ collapsed, user = {} }, ref) => {
                 {!collapsed && <p className="text-lg font-medium text-slate-900 transition-colors dark:text-slate-50">Icc Ambiental</p>}
             </div>
             <div className="flex w-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden p-3 [scrollbar-width:_thin]">
-                {navbarLinks.map((navbarLink) => (
+                {filteredNavbarLinks.map((navbarLink) => (
                     <nav
                         key={navbarLink.title}
                         className={cn("sidebar-group", collapsed && "md:items-center")}

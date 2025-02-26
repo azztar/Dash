@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext"; // Añadir useAu
 import Layout from "@/routes/layout";
 import Login from "@/pages/Login";
 import DashboardPage from "@/routes/dashboard/page";
-import AnalisisPage from "@/routes/analisis/page";
 import AirePage from "@/routes/aire/page";
 import ReportsPage from "@/routes/archivos/page";
 import AdminPage from "@/routes/adminpage/page";
@@ -48,18 +47,20 @@ function AppRoutes() {
                         path="/aire"
                         element={<AirePage />}
                     />
-                    <Route
-                        path="/analisis"
-                        element={<AnalisisPage />}
-                    />
+
                     <Route
                         path="/informe"
                         element={<ReportsPage />}
                     />
                     <Route
                         path="/clientes"
-                        element={<AdminPage />}
+                        element={
+                            <ProtectedRoute allowedRoles={["administrador", "empleado"]}>
+                                <AdminPage />
+                            </ProtectedRoute>
+                        }
                     />
+
                     <Route
                         path="/configuracion"
                         element={<SettingsPage />}
