@@ -8,6 +8,7 @@ const measurementRoutes = require("./routes/measurementRoutes");
 const stationRoutes = require("./routes/stationRoutes");
 const declarationRoutes = require("./routes/declarationRoutes");
 const userRoutes = require("./routes/userRoutes");
+const filesRoutes = require("./routes/fileRoutes");
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api/stations", stationRoutes);
 app.use("/api/measurements", measurementRoutes);
 app.use("/api/declarations", declarationRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/files", filesRoutes);
 
 // Manejador de errores mejorado con más detalles
 app.use((err, req, res, next) => {

@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { login, verifyToken } = require("../controllers/authController");
+const authController = require("../controllers/authController");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
 // Ruta de login
-router.post("/login", login);
+router.post("/login", authController.login);
 
 // Ruta para validar token
 router.get("/validate-token", authMiddleware, (req, res) => {
@@ -14,6 +14,6 @@ router.get("/validate-token", authMiddleware, (req, res) => {
     });
 });
 
-router.get("/verify", authMiddleware, verifyToken);
+router.get("/verify", authMiddleware, authController.verifyToken);
 
 module.exports = router;

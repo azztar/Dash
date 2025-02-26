@@ -35,36 +35,40 @@ router.post("/login", async (req, res) => {
     }
 });
 
-const authMiddleware = (req, res, next) => {
+exports.authMiddleware = (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(" ")[1];
+        // Obtener token de header o query param
+        const authHeader = req.headers.authorization;
+        const token = (authHeader && authHeader.split(" ")[1]) || req.query.token;
 
         if (!token) {
-            console.log("No se encontró token");
             return res.status(401).json({
                 success: false,
-                message: "No se proporcionó token de autenticación",
+                message: "Acceso no autorizado - Token requerido",
             });
         }
 
+        // Verificar token y extraer datos del usuario
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("Token decodificado:", decoded);
 
+        // IMPORTANTE: Asegurar que estos campos estén disponibles
         req.user = {
-            id: decoded.userId, // Cambiado de id a userId
+            id: decoded.userId || decoded.id, // Asegurar compatibilidad con ambos formatos
             rol: decoded.rol,
             nit: decoded.nit,
         };
 
-        console.log("Usuario extraído del token:", req.user);
+        console.log("👤 Usuario autenticado:", {
+            id: req.user.id,
+            rol: req.user.rol,
+        });
+
         next();
     } catch (error) {
-        console.error("Error en autenticación:", error);
-        res.status(401).json({
+        console.error("Error de autenticación:", error);
+        return res.status(401).json({
             success: false,
-            message: "Token inválido",
+            message: "Token inválido o expirado",
         });
     }
 };
-
-module.exports = { authMiddleware };

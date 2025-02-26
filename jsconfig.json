@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": ".",
+        "lib": ["es6"],
         "paths": {
             "@/*": ["src/*"]
         }

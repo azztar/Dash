@@ -3,12 +3,11 @@ const bcrypt = require("bcrypt");
 const db = require("../config/database");
 
 const login = async (req, res) => {
-    const connection = await db.getConnection();
     try {
         const { nit, password } = req.body;
         console.log("Intento de login:", { nit });
 
-        const [users] = await connection.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
+        const [users] = await db.query("SELECT * FROM usuarios WHERE nit = ?", [nit]);
 
         if (users.length === 0) {
             return res.status(401).json({
@@ -27,23 +26,19 @@ const login = async (req, res) => {
             });
         }
 
+        // Generar el token con la información correcta
         const token = jwt.sign(
             {
-                userId: user.id_usuario,
-                nit: user.nit,
+                userId: user.id_usuario, // IMPORTANTE: Usar userId consistentemente
                 rol: user.rol,
-                empresa: user.nombre_empresa,
+                nit: user.nit,
             },
             process.env.JWT_SECRET,
             { expiresIn: "24h" },
         );
 
-        console.log("Token generado para usuario:", {
-            userId: user.id_usuario,
-            rol: user.rol,
-        });
-
-        res.json({
+        // Asegurarse de enviar una respuesta completa
+        return res.json({
             success: true,
             token,
             user: {
@@ -55,16 +50,14 @@ const login = async (req, res) => {
         });
     } catch (error) {
         console.error("Error en login:", error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Error en el servidor",
         });
-    } finally {
-        connection.release();
     }
 };
 
-exports.register = async (req, res) => {
+const register = async (req, res) => {
     try {
         const { nit, password, email, name } = req.body;
 
@@ -98,7 +91,7 @@ exports.register = async (req, res) => {
     }
 };
 
-exports.validateToken = async (req, res) => {
+const validateToken = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
 
@@ -162,7 +155,10 @@ const verifyToken = async (req, res) => {
     }
 };
 
+// Al final del archivo, mantén esta forma de exportación
 module.exports = {
     login,
+    register,
+    validateToken,
     verifyToken,
 };

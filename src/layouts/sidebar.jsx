@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileText, Wind, Users, Settings, Upload } from "lucide-react";
+import { LayoutDashboard, FileText, Wind, Users, Settings, Upload, FolderArchive } from "lucide-react";
 import logoLight from "@/assets/logo-light.svg";
 import logoDark from "@/assets/logo-dark.svg";
 import { cn } from "@/utils/cn";
@@ -35,6 +35,11 @@ const navbarLinks = [
                 label: "Clientes",
                 path: "/clientes",
                 icon: Users,
+            },
+            {
+                label: "Archivos",
+                path: "/archivos",
+                icon: FolderArchive,
             },
             {
                 label: "Configuración",
