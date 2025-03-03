@@ -389,4 +389,91 @@ router.get("/measurements", authMiddleware, async (req, res) => {
     }
 });
 
+// Ruta para obtener mediciones recientes para el dashboard
+router.get("/recent/:userId", authMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Verificar permisos - solo puede ver sus propias mediciones o un admin puede ver todo
+        if (req.user.rol !== "administrador" && req.user.id.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "No tienes permisos para ver estos datos",
+            });
+        }
+
+        // 1. Obtener estaciones del cliente
+        const [estaciones] = await db.query(`SELECT id_estacion FROM estaciones WHERE id_usuario = ?`, [userId]);
+
+        if (estaciones.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                message: "No hay estaciones configuradas para este cliente",
+            });
+        }
+
+        // Lista de IDs de estaciones
+        const estacionIds = estaciones.map((est) => est.id_estacion);
+        const estacionesIn = estacionIds.join(",");
+
+        // 2. Obtener mediciones recientes (últimos 7 días)
+        const [measurements] = await db.query(
+            `SELECT 
+                ma.*,
+                n.parametro,
+                n.valor_limite,
+                n.unidad
+            FROM 
+                mediciones_aire ma
+            JOIN 
+                normas n ON ma.id_norma = n.id_norma
+            WHERE 
+                ma.id_estacion IN (${estacionesIn})
+            AND 
+                ma.fecha_muestra >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+            ORDER BY 
+                ma.fecha_muestra DESC, 
+                ma.hora_muestra DESC
+            LIMIT 50`,
+            [],
+        );
+
+        // 3. Agrupar por parámetro para gráfico circular
+        const paramGroups = {};
+        let total = 0;
+
+        measurements.forEach((m) => {
+            if (!paramGroups[m.parametro]) {
+                paramGroups[m.parametro] = 0;
+            }
+            paramGroups[m.parametro]++;
+            total++;
+        });
+
+        const groupedByParameter = Object.keys(paramGroups).map((key) => {
+            const count = paramGroups[key];
+            // Calcular porcentaje para el gráfico
+            const percentage = Math.round((count / total) * 100);
+            return {
+                name: key,
+                value: percentage,
+            };
+        });
+
+        res.json({
+            success: true,
+            data: measurements,
+            groupedByParameter,
+            total: measurements.length,
+        });
+    } catch (error) {
+        console.error("Error al obtener mediciones recientes:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error al obtener mediciones recientes",
+        });
+    }
+});
+
 module.exports = router;

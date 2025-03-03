@@ -52,25 +52,24 @@ const DashboardPage = () => {
                 setFiles(filesResponse.data.files || []);
 
                 // Cargar mediciones si hay estaciones asociadas
-                if (user?.rol === "cliente") {
+                if (user?.rol === "cliente" && user?.id) {
                     try {
-                        // Intentar cargar mediciones recientes
+                        console.log("Consultando mediciones para usuario:", user.id);
                         const measurementsResponse = await axios.get(`${API_URL}/api/measurements/recent/${user.id}`, {
                             headers: { Authorization: `Bearer ${token}` },
                         });
 
-                        setMeasurements(measurementsResponse.data.data || []);
+                        console.log("Respuesta de mediciones:", measurementsResponse.data);
 
-                        // Crear datos agrupados para el gráfico de barras
-                        const grouped = measurementsResponse.data.groupedByParameter || [];
-                        setMeasurementsByType(grouped);
-
-                        // Obtener la medición más reciente
-                        if (measurementsResponse.data.data?.length > 0) {
+                        if (measurementsResponse.data.data && measurementsResponse.data.data.length > 0) {
+                            setMeasurements(measurementsResponse.data.data);
+                            setMeasurementsByType(measurementsResponse.data.groupedByParameter || []);
                             setLatestMeasurement(measurementsResponse.data.data[0]);
+                        } else {
+                            console.log("No hay datos de mediciones disponibles");
                         }
                     } catch (err) {
-                        console.log("No hay mediciones disponibles");
+                        console.error("Error al cargar mediciones:", err.response?.data || err.message);
                     }
                 }
 
@@ -290,6 +289,45 @@ const DashboardPage = () => {
                             </span>
                         </div>
                     </div>
+
+                    <div
+                        className="card"
+                        onClick={() => navigate("/informes")}
+                        style={{ cursor: "pointer" }}
+                    >
+                        <div className="card-header">
+                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
+                                <FileText size={26} />
+                            </div>
+                            <p className="card-title">Informes</p>
+                        </div>
+                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
+                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver informes</p>
+                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
+                                <FileText size={18} />
+                                Disponibles
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header">
+                            <p className="card-title">Estado de Cumplimiento</p>
+                        </div>
+                        <div className="card-body">
+                            <div className="flex items-center justify-between">
+                                <p>Norma CO (8h)</p>
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">CUMPLE</span>
+                            </div>
+                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                                <div
+                                    className="h-full bg-green-500"
+                                    style={{ width: "28%" }}
+                                ></div>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Concentración actual: 28% del límite permitido</p>
+                        </div>
+                    </div>
                 </>
             );
         } else {
@@ -298,7 +336,7 @@ const DashboardPage = () => {
                 <>
                     <div
                         className="card"
-                        onClick={() => navigate("/mediciones")}
+                        onClick={() => navigate("/aire")} // Cambia esta línea
                         style={{ cursor: "pointer" }}
                     >
                         <div className="card-header">
@@ -335,38 +373,6 @@ const DashboardPage = () => {
                             </span>
                         </div>
                     </div>
-
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <PieChartIcon size={26} />
-                            </div>
-                            <p className="card-title">Análisis</p>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Informes</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <TrendingUp size={18} />
-                                Disponibles
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <Bell size={26} />
-                            </div>
-                            <p className="card-title">Notificaciones</p>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{notifications.length}</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <Bell size={18} />
-                                Nuevas
-                            </span>
-                        </div>
-                    </div>
                 </>
             );
         }
@@ -379,13 +385,56 @@ const DashboardPage = () => {
             {/* Tarjetas de bienvenida y estado general */}
             <div className="card bg-gradient-to-r from-blue-500 to-blue-700 text-white">
                 <div className="p-6">
-                    <h2 className="text-2xl font-bold">Bienvenido, {user?.nombre || "Usuario"}</h2>
-                    <p className="mt-2 opacity-90">Aquí encontrarás un resumen de la información más relevante</p>
+                    <h2 className="text-2xl font-bold">
+                        Bienvenido, {user?.rol === "cliente" ? user?.nombre_empresa || user?.nombre_usuario : user?.nombre || "Usuario"}
+                    </h2>
+                    <p className="mt-2 opacity-90">
+                        {user?.rol === "cliente"
+                            ? `Panel de control para ${user?.nombre_empresa || user?.nombre_usuario || "su empresa"}`
+                            : "Aquí encontrarás un resumen de la información más relevante"}
+                    </p>
                 </div>
             </div>
 
             {/* Indicadores principales */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{renderIndicatorCards()}</div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Indicadores principales */}
+                {renderIndicatorCards()}
+
+                {/* Centro de notificaciones */}
+                <div className="card col-span-1 md:col-span-2 lg:col-span-1">
+                    <div className="card-header">
+                        <div className="flex items-center justify-between">
+                            <p className="card-title">Notificaciones</p>
+                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                {notifications.length} nuevas
+                            </span>
+                        </div>
+                    </div>
+                    <div className="card-body max-h-[320px] divide-y overflow-y-auto p-0">
+                        {notifications.length > 0 ? (
+                            notifications.map((notification) => (
+                                <div
+                                    key={notification.id}
+                                    className="flex cursor-pointer items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                    onClick={notification.action}
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        {notification.icon}
+                                        <div>
+                                            <h3 className="font-medium text-slate-900 dark:text-slate-100">{notification.title}</h3>
+                                            <p className="text-sm text-slate-500">{notification.description}</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-slate-500">No hay notificaciones nuevas</div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             {/* Gráficos principales */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -472,36 +521,33 @@ const DashboardPage = () => {
                 </div>
             </div>
 
-            {/* Centro de notificaciones */}
             <div className="card">
                 <div className="card-header">
-                    <div className="flex items-center justify-between">
-                        <p className="card-title">Centro de notificaciones</p>
-                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">{notifications.length} nuevas</span>
+                    <p className="card-title">Resumen de Mediciones</p>
+                </div>
+                <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-sm text-slate-500">Promedio CO:</p>
+                            <p className="text-xl font-bold">
+                                {measurements.length > 0
+                                    ? (measurements.reduce((acc, m) => acc + parseFloat(m.concentracion), 0) / measurements.length).toFixed(2)
+                                    : "N/A"}{" "}
+                                µg/m³
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-500">Medición más alta:</p>
+                            <p className="text-xl font-bold">
+                                {measurements.length > 0 ? Math.max(...measurements.map((m) => parseFloat(m.concentracion))).toFixed(2) : "N/A"} µg/m³
+                            </p>
+                        </div>
                     </div>
                 </div>
-                <div className="card-body divide-y p-0">
-                    {notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                            <div
-                                key={notification.id}
-                                className="flex cursor-pointer items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-900"
-                                onClick={notification.action}
-                            >
-                                <div className="flex items-center space-x-3">
-                                    {notification.icon}
-                                    <div>
-                                        <h3 className="font-medium text-slate-900 dark:text-slate-100">{notification.title}</h3>
-                                        <p className="text-sm text-slate-500">{notification.description}</p>
-                                    </div>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-slate-400" />
-                            </div>
-                        ))
-                    ) : (
-                        <div className="p-4 text-center text-slate-500">No hay notificaciones nuevas</div>
-                    )}
-                </div>
+            </div>
+
+            <div className="text-right text-sm text-slate-500">
+                <p>Última actualización: {new Date().toLocaleString()}</p>
             </div>
 
             <Footer />
