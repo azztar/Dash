@@ -91,7 +91,7 @@ const Login = () => {
                 >
                     Iniciar Sesión <ArrowRightIcon className="ml-2 h-5 w-5" />
                 </button>
-
+                {/*
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                     <a
                         href="/forgot-password"
@@ -99,13 +99,9 @@ const Login = () => {
                     >
                         ¿Olvidaste tu contraseña?
                     </a>
-                    <a
-                        href="/register"
-                        className="hover:text-indigo-500"
-                    >
-                        Registrarse
-                    </a>
                 </div>
+
+                */}
             </form>
         </AuthLayout>
     );
