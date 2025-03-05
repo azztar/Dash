@@ -201,24 +201,80 @@ router.get("/available-dates", authMiddleware, async (req, res) => {
 router.get("/", getMeasurements); // Cambiar /measurements a /
 
 // Función para convertir fecha y hora del formato español
-const parseFechaHora = (fechaStr, horaStr) => {
-    // Convertir fecha del formato d/mm/yyyy a yyyy-mm-dd
-    const [dia, mes, ano] = fechaStr.split("/");
-    const fecha = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
-
-    // Convertir hora y limpiar "a. m." y "p. m."
-    let hora = horaStr.toLowerCase().replace(" a. m.", "").replace(" p. m.", "").trim();
-
-    // Asegurar formato de 24 horas
-    if (horaStr.toLowerCase().includes("p. m.")) {
-        const [h, m] = hora.split(":");
-        let hour = parseInt(h);
-        if (hour !== 12) hour += 12;
-        hora = `${hour}:${m}`;
+function parseFechaHora(fecha, hora) {
+    // Verificar que fecha y hora no sean undefined
+    if (!fecha) {
+        console.log("⚠️ Fecha vacía o undefined");
+        return { fecha: null, hora: null };
     }
 
-    return { fecha, hora };
-};
+    // Convertir fecha a string si es número (fecha serial de Excel)
+    const fechaStr = String(fecha).trim();
+    let fechaFormateada = null;
+
+    try {
+        if (fechaStr.includes("/")) {
+            // Formato DD/MM/YYYY
+            const partes = fechaStr.split("/");
+            if (partes.length === 3) {
+                const dia = String(partes[0]).padStart(2, "0");
+                const mes = String(partes[1]).padStart(2, "0");
+                const anio = partes[2];
+                fechaFormateada = `${anio}-${mes}-${dia}`;
+            } else {
+                console.log(`⚠️ Formato de fecha incorrecto: ${fechaStr}`);
+            }
+        } else if (!isNaN(fechaStr)) {
+            // Es un número (fecha serial de Excel)
+            let diasDesde1900 = parseInt(fechaStr) - 1;
+            if (diasDesde1900 > 59) diasDesde1900 -= 1; // Ajuste por error de Excel
+
+            const fecha = new Date(1900, 0, diasDesde1900);
+            const anio = fecha.getFullYear();
+            const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
+            const dia = fecha.getDate().toString().padStart(2, "0");
+
+            fechaFormateada = `${anio}-${mes}-${dia}`;
+        }
+    } catch (error) {
+        console.error(`❌ Error procesando fecha: ${error.message}`);
+    }
+
+    // Procesar hora
+    let horaFormateada = null;
+    if (hora) {
+        try {
+            const horaStr = String(hora).trim();
+            let [horas, resto] = horaStr.split(":");
+            let minutos = "00";
+
+            if (resto) {
+                minutos = resto.split(" ")[0] || "00";
+            }
+
+            horas = parseInt(horas, 10) || 0;
+
+            // Convertir AM/PM a formato 24h
+            if (horaStr.toLowerCase().includes("p.m.") || horaStr.toLowerCase().includes("pm")) {
+                if (horas !== 12) horas += 12;
+            } else if ((horaStr.toLowerCase().includes("a.m.") || horaStr.toLowerCase().includes("am")) && horas === 12) {
+                horas = 0;
+            }
+
+            horaFormateada = `${String(horas).padStart(2, "0")}:${minutos.padStart(2, "0")}:00`;
+        } catch (error) {
+            console.error(`❌ Error procesando hora: ${error.message}`);
+            horaFormateada = "00:00:00";
+        }
+    } else {
+        horaFormateada = "00:00:00";
+    }
+
+    return {
+        fecha: fechaFormateada,
+        hora: horaFormateada,
+    };
+}
 
 // Modificar la ruta de carga
 router.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
@@ -241,19 +297,68 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
 
-        // 4. Preparar los datos para inserción
-        const processedData = data.map((row) => [
-            stationId,
-            normaId,
-            row.muestra,
-            parseFechaHora(row.fecha_muestra, row.hora_muestra).fecha,
-            parseFechaHora(row.fecha_muestra, row.hora_muestra).hora,
-            parseFloat(row.tiempo_muestreo.replace(",", ".")),
-            parseFloat(row.concentracion.replace(",", ".")),
-            parseFloat(row.u.replace(",", ".")),
-            parseFloat(row.u_factor_cobertura.replace(",", ".")),
-            fecha_inicio_muestra,
-        ]);
+        // Añadir esto: Definir headerMap antes de usarlo
+        const headers = Object.keys(data[0] || {});
+        console.log("🔑 Encabezados del Excel:", headers);
+
+        const headerMap = {
+            muestra: headers.find((h) => h.toLowerCase().includes("muestra")),
+            fecha: headers.find((h) => h.toLowerCase().includes("fecha")),
+            hora: headers.find((h) => h.toLowerCase().includes("hora")),
+            tiempo: headers.find((h) => h.toLowerCase().includes("tiempo")),
+            concentracion: headers.find((h) => h.toLowerCase().includes("conce")),
+            u: headers.find((h) => h === "u" || h === "U"),
+            uFactor: headers.find((h) => h.toLowerCase().includes("factor")),
+        };
+
+        console.log("🗺️ Mapeo de columnas:", headerMap);
+        console.log("📑 Primera fila:", data[0]);
+
+        // Verificar que todas las columnas necesarias existan
+        if (!headerMap.muestra || !headerMap.fecha || !headerMap.tiempo || !headerMap.concentracion || !headerMap.u || !headerMap.uFactor) {
+            console.error("❌ Error: No se encontraron todos los encabezados necesarios");
+            console.log("Encabezados disponibles:", headers);
+            console.log("Mapeo encontrado:", headerMap);
+
+            // Intento de corrección automática - usar posiciones por defecto
+            if (!headerMap.muestra) headerMap.muestra = headers[0];
+            if (!headerMap.fecha) headerMap.fecha = headers[1];
+            if (!headerMap.hora) headerMap.hora = headers[2];
+            if (!headerMap.tiempo) headerMap.tiempo = headers[3];
+            if (!headerMap.concentracion) headerMap.concentracion = headers[4];
+            if (!headerMap.u) headerMap.u = headers[5];
+            if (!headerMap.uFactor) headerMap.uFactor = headers[6];
+
+            console.log("🔄 Mapeo corregido:", headerMap);
+        }
+
+        // 4. Preparar los datos para inserción con mejor manejo de errores
+        const processedData = data.map((row, i) => {
+            const processed = parseFechaHora(row[headerMap.fecha], row[headerMap.hora]);
+            if (!processed.fecha) {
+                console.log(`⚠️ Usando fecha predeterminada para fila ${i + 1}`);
+                processed.fecha = fecha_inicio_muestra;
+            }
+
+            // Función para manejar valores numéricos con posibles comas
+            const processNumber = (value) => {
+                if (!value) return 0;
+                return parseFloat(String(value).replace(",", ".")) || 0;
+            };
+
+            return [
+                stationId,
+                normaId,
+                row[headerMap.muestra] || `Muestra ${i + 1}`,
+                processed.fecha,
+                processed.hora,
+                processNumber(row[headerMap.tiempo]),
+                processNumber(row[headerMap.concentracion]),
+                processNumber(row[headerMap.u]),
+                processNumber(row[headerMap.uFactor]),
+                fecha_inicio_muestra,
+            ];
+        });
 
         // 5. Insertar mediciones
         if (processedData.length > 0) {
@@ -417,7 +522,7 @@ router.get("/recent/:userId", authMiddleware, async (req, res) => {
         const estacionIds = estaciones.map((est) => est.id_estacion);
         const estacionesIn = estacionIds.join(",");
 
-        // 2. Obtener mediciones recientes (últimos 7 días)
+        // 2. Obtener mediciones recientes (últimos 365 días)
         const [measurements] = await db.query(
             `SELECT 
                 ma.*,
@@ -431,7 +536,7 @@ router.get("/recent/:userId", authMiddleware, async (req, res) => {
             WHERE 
                 ma.id_estacion IN (${estacionesIn})
             AND 
-                ma.fecha_muestra >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+                ma.fecha_muestra >= DATE_SUB(CURRENT_DATE, INTERVAL 365 DAY)
             ORDER BY 
                 ma.fecha_muestra DESC, 
                 ma.hora_muestra DESC

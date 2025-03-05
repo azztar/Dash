@@ -32,15 +32,49 @@ const DashboardPage = () => {
 
     // Estados para almacenar datos
     const [isLoading, setIsLoading] = useState(true);
-    const [files, setFiles] = useState([]);
-    const [measurements, setMeasurements] = useState([]);
+    const [files, setFiles] = useState(() => {
+        try {
+            const saved = localStorage.getItem("dashboard_files");
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    const [measurements, setMeasurements] = useState(() => {
+        try {
+            const saved = localStorage.getItem("dashboard_measurements");
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    const [latestMeasurement, setLatestMeasurement] = useState(() => {
+        try {
+            const saved = localStorage.getItem("dashboard_latestMeasurement");
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+
     const [notifications, setNotifications] = useState([]);
     const [measurementsByType, setMeasurementsByType] = useState([]);
-    const [latestMeasurement, setLatestMeasurement] = useState(null);
 
     // Función para cargar datos del usuario
     useEffect(() => {
         if (!token) return;
+
+        const lastFetch = localStorage.getItem("dashboard_timestamp");
+        const currentTime = Date.now();
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+        // Si los datos tienen menos de 5 minutos, no hace falta recargarlos
+        if (lastFetch && currentTime - parseInt(lastFetch) < CACHE_DURATION) {
+            setIsLoading(false);
+            return; // No recarga datos
+        }
 
         const fetchData = async () => {
             setIsLoading(true);
@@ -81,6 +115,19 @@ const DashboardPage = () => {
             } finally {
                 setIsLoading(false);
             }
+
+            const saveDataToLocalStorage = () => {
+                // Guardar datos importantes en localStorage
+                localStorage.setItem("dashboard_measurements", JSON.stringify(measurementsResponse.data.data || []));
+                localStorage.setItem("dashboard_files", JSON.stringify(filesResponse.data.files || []));
+                localStorage.setItem(
+                    "dashboard_latestMeasurement",
+                    measurementsResponse.data.data?.length > 0 ? JSON.stringify(measurementsResponse.data.data[0]) : null,
+                );
+                localStorage.setItem("dashboard_timestamp", Date.now().toString());
+            };
+
+            saveDataToLocalStorage();
         };
 
         fetchData();
@@ -378,6 +425,14 @@ const DashboardPage = () => {
         }
     };
 
+    function parseNumberWithLocale(value) {
+        if (!value) return 0;
+        // Convierte la entrada a string si no lo es
+        const strValue = value.toString();
+        // Reemplaza coma por punto para el procesamiento
+        return parseFloat(strValue.replace(",", "."));
+    }
+
     return (
         <div className="flex flex-col gap-y-4">
             <h1 className="title">Dashboard</h1>
@@ -531,7 +586,9 @@ const DashboardPage = () => {
                             <p className="text-sm text-slate-500">Promedio CO:</p>
                             <p className="text-xl font-bold">
                                 {measurements.length > 0
-                                    ? (measurements.reduce((acc, m) => acc + parseFloat(m.concentracion), 0) / measurements.length).toFixed(2)
+                                    ? (
+                                          measurements.reduce((acc, m) => acc + parseNumberWithLocale(m.concentracion), 0) / measurements.length
+                                      ).toFixed(2)
                                     : "N/A"}{" "}
                                 µg/m³
                             </p>
@@ -539,7 +596,10 @@ const DashboardPage = () => {
                         <div>
                             <p className="text-sm text-slate-500">Medición más alta:</p>
                             <p className="text-xl font-bold">
-                                {measurements.length > 0 ? Math.max(...measurements.map((m) => parseFloat(m.concentracion))).toFixed(2) : "N/A"} µg/m³
+                                {measurements.length > 0
+                                    ? Math.max(...measurements.map((m) => parseNumberWithLocale(m.concentracion))).toFixed(2)
+                                    : "N/A"}{" "}
+                                µg/m³
                             </p>
                         </div>
                     </div>
