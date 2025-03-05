@@ -229,19 +229,29 @@ function parseFechaHora(fecha, hora) {
             let diasDesde1900 = parseInt(fechaStr) - 1;
             if (diasDesde1900 > 59) diasDesde1900 -= 1; // Ajuste por error de Excel
 
-            const fecha = new Date(1900, 0, diasDesde1900);
-            const anio = fecha.getFullYear();
-            const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
-            const dia = fecha.getDate().toString().padStart(2, "0");
+            // SOLUCIÓN: Crear fecha con UTC para evitar ajustes de zona horaria
+            const msDesde1900 = diasDesde1900 * 24 * 60 * 60 * 1000;
+            const fechaBase = new Date(Date.UTC(1900, 0, 1)); // 1 de enero de 1900 en UTC
+            const fechaFinal = new Date(fechaBase.getTime() + msDesde1900);
+
+            // Extraer componentes de fecha en UTC para evitar ajustes de zona horaria
+            const anio = fechaFinal.getUTCFullYear();
+            const mes = (fechaFinal.getUTCMonth() + 1).toString().padStart(2, "0");
+            const dia = fechaFinal.getUTCDate().toString().padStart(2, "0");
 
             fechaFormateada = `${anio}-${mes}-${dia}`;
+            console.log(`📅 Fecha serial ${fechaStr} convertida a: ${fechaFormateada}`);
         }
     } catch (error) {
         console.error(`❌ Error procesando fecha: ${error.message}`);
     }
 
+    // El resto de la función se mantiene igual...
+    // ... código para procesar hora ...
+
     // Procesar hora
-    let horaFormateada = null;
+    let horaFormateada = "00:00:00"; // Valor predeterminado
+
     if (hora) {
         try {
             const horaStr = String(hora).trim();
@@ -255,21 +265,24 @@ function parseFechaHora(fecha, hora) {
             horas = parseInt(horas, 10) || 0;
 
             // Convertir AM/PM a formato 24h
-            if (horaStr.toLowerCase().includes("p.m.") || horaStr.toLowerCase().includes("pm")) {
+            if (horaStr.toLowerCase().includes("p.m.") || horaStr.toLowerCase().includes("pm") || horaStr.toLowerCase().includes("p. m.")) {
                 if (horas !== 12) horas += 12;
-            } else if ((horaStr.toLowerCase().includes("a.m.") || horaStr.toLowerCase().includes("am")) && horas === 12) {
+            } else if (
+                (horaStr.toLowerCase().includes("a.m.") || horaStr.toLowerCase().includes("am") || horaStr.toLowerCase().includes("a. m.")) &&
+                horas === 12
+            ) {
                 horas = 0;
             }
 
             horaFormateada = `${String(horas).padStart(2, "0")}:${minutos.padStart(2, "0")}:00`;
+            console.log(`⏰ Hora "${horaStr}" convertida a: ${horaFormateada}`);
         } catch (error) {
             console.error(`❌ Error procesando hora: ${error.message}`);
             horaFormateada = "00:00:00";
         }
-    } else {
-        horaFormateada = "00:00:00";
     }
 
+    // Tu return existente
     return {
         fecha: fechaFormateada,
         hora: horaFormateada,
