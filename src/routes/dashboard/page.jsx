@@ -79,6 +79,11 @@ const DashboardPage = () => {
     const [notifications, setNotifications] = useState([]);
     const [measurementsByType, setMeasurementsByType] = useState([]);
 
+    const [userDisplay, setUserDisplay] = useState(() => {
+        const savedUser = localStorage.getItem("user_data");
+        return savedUser ? JSON.parse(savedUser) : user;
+    });
+
     // Función para cargar datos del usuario
     useEffect(() => {
         if (!token) return;
@@ -147,6 +152,17 @@ const DashboardPage = () => {
 
         fetchData();
     }, [token, user, API_URL]);
+
+    // Añade un log para verificar qué datos están llegando:
+    useEffect(() => {
+        console.log("Datos de usuario en dashboard:", user);
+    }, [user]);
+
+    useEffect(() => {
+        if (user && user.id && user.nombre && user.empresa) {
+            setUserDisplay(user);
+        }
+    }, [user]);
 
     // Generar notificaciones en base a datos
     const generateNotifications = (files) => {
@@ -558,13 +574,13 @@ const DashboardPage = () => {
 
             {/* Tarjetas de bienvenida y estado general */}
             <div className="card bg-gradient-to-r from-blue-500 to-blue-700 text-white">
-                <div className="p-6">
+                <div className="bg-transparent p-6">
                     <h2 className="text-2xl font-bold">
-                        Bienvenido, {user?.rol === "cliente" ? user?.nombre_empresa || user?.nombre_usuario : user?.nombre || "Usuario"}
+                        Bienvenido, {userDisplay?.nombre || user?.nombre || (user?.rol === "administrador" ? "Administrador" : "Usuario")}
                     </h2>
                     <p className="mt-2 opacity-90">
                         {user?.rol === "cliente"
-                            ? `Panel de control para ${user?.nombre_empresa || user?.nombre_usuario || "su empresa"}`
+                            ? `Panel de control para ${userDisplay?.empresa || user?.empresa || "su empresa"}`
                             : "Aquí encontrarás un resumen de la información más relevante"}
                     </p>
                 </div>

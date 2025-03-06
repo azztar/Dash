@@ -75,63 +75,69 @@ const DetalleAire = () => {
                 </div>
             ) : (
                 <>
-                    <Card>
-                        <Title className="mb-4">Mediciones</Title>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50 dark:bg-gray-800">
-                                    <tr>
-                                        <th className="p-4 text-left">Fecha</th>
-                                        <th className="p-4 text-left">Concentración PM10</th>
-                                        <th className="p-4 text-left">Incertidumbre</th>
-                                        <th className="p-4 text-left">Factor de Cobertura</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {mediciones.map((medicion) => (
-                                        <tr
-                                            key={medicion.id_medicion_aire}
-                                            className="border-t border-gray-200 dark:border-gray-700"
-                                        >
-                                            <td className="p-4">{new Date(medicion.fecha_hora_inicial).toLocaleDateString("es-ES")}</td>
-                                            <td className="p-4">{medicion.concentracion_pm10} µg/m³</td>
-                                            <td className="p-4">{medicion.u_pm10} µg/m³</td>
-                                            <td className="p-4">{medicion.u_pm10_factor_cobertura}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                    {mediciones.length === 0 ? (
+                        <Text className="text-slate-500 dark:text-slate-400">No hay datos disponibles para el periodo seleccionado</Text>
+                    ) : (
+                        <>
+                            <Card>
+                                <Title className="mb-4">Mediciones</Title>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <th className="p-4 text-left">Fecha</th>
+                                                <th className="p-4 text-left">Concentración PM10</th>
+                                                <th className="p-4 text-left">Incertidumbre</th>
+                                                <th className="p-4 text-left">Factor de Cobertura</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {mediciones.map((medicion) => (
+                                                <tr
+                                                    key={medicion.id_medicion_aire}
+                                                    className="border-t border-gray-200 dark:border-gray-700"
+                                                >
+                                                    <td className="p-4">{new Date(medicion.fecha_hora_inicial).toLocaleDateString("es-ES")}</td>
+                                                    <td className="p-4">{medicion.concentracion_pm10} µg/m³</td>
+                                                    <td className="p-4">{medicion.u_pm10} µg/m³</td>
+                                                    <td className="p-4">{medicion.u_pm10_factor_cobertura}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
 
-                    <Card>
-                        <Title className="mb-4">Gráfico de Tendencia</Title>
-                        <ResponsiveContainer
-                            width="100%"
-                            height={400}
-                        >
-                            <AreaChart data={mediciones}>
-                                <XAxis
-                                    dataKey="fecha_hora_inicial"
-                                    tickFormatter={(date) => new Date(date).toLocaleDateString("es-ES")}
-                                    stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"}
-                                />
-                                <YAxis stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"} />
-                                <Tooltip />
-                                <ReferenceLine
-                                    y={75}
-                                    stroke="#EF4444"
-                                    label="Límite PM10"
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="concentracion_pm10"
-                                    stroke="#3B82F6"
-                                    fill="#93C5FD"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </Card>
+                            <Card>
+                                <Title className="mb-4">Gráfico de Tendencia</Title>
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height={400}
+                                >
+                                    <AreaChart data={mediciones}>
+                                        <XAxis
+                                            dataKey="fecha_hora_inicial"
+                                            tickFormatter={(date) => new Date(date).toLocaleDateString("es-ES")}
+                                            stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"}
+                                        />
+                                        <YAxis stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"} />
+                                        <Tooltip />
+                                        <ReferenceLine
+                                            y={75}
+                                            stroke="#EF4444"
+                                            label="Límite PM10"
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="concentracion_pm10"
+                                            stroke="#3B82F6"
+                                            fill="#93C5FD"
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </Card>
+                        </>
+                    )}
                 </>
             )}
         </div>

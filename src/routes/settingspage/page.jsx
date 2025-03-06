@@ -16,7 +16,7 @@ const SettingsPage = () => {
     const [refreshInterval, setRefreshInterval] = useState("0");
 
     return (
-        <div className={`min-h-screen p-6 transition-colors ${theme === "light" ? "bg-slate-100" : "bg-slate-950"}`}>
+        <div className={`min-h-screen p-6 transition-colors ${theme === "light" ? "bg-slate-100 text-slate-900" : "bg-slate-950 text-white"}`}>
             {/* Título de la página */}
             <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-white">Configuración</h1>
 

@@ -51,7 +51,7 @@ const ReportsPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 p-6 transition-colors dark:bg-slate-950">
+        <div className="min-h-screen bg-slate-100 p-6 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
             {/* Título de la página */}
             <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-slate-50">Informes</h1>
 
@@ -82,7 +82,7 @@ const ReportsPage = () => {
                 <CardContent>
                     <div className="grid gap-4">
                         {files.length === 0 ? (
-                            <p className="text-slate-500">No hay informes disponibles</p>
+                            <p className="text-slate-500 dark:text-slate-400">No hay informes disponibles</p>
                         ) : (
                             files.map((file) => (
                                 <div
@@ -94,10 +94,16 @@ const ReportsPage = () => {
                                         <File className="text-blue-500" />
                                         <div>
                                             <p className="font-medium text-slate-900 dark:text-slate-50">{file.name}</p>
-                                            <p className="text-sm text-slate-500">Subido el {new Date(file.uploadDate).toLocaleDateString()}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                Subido el {new Date(file.uploadDate).toLocaleDateString()}
+                                            </p>
                                         </div>
                                     </div>
-                                    {file.isNew && <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Nuevo</span>}
+                                    {file.isNew && (
+                                        <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                            Nuevo
+                                        </span>
+                                    )}
                                 </div>
                             ))
                         )}

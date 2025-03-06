@@ -118,6 +118,8 @@
     .p-6 {
         @apply bg-white transition-colors dark:bg-slate-900;
     }
+
+
 }
 
 .recharts-default-tooltip {

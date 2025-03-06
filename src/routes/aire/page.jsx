@@ -126,7 +126,7 @@ const AirePage = () => {
     }
 
     return (
-        <div className="min-h-screen space-y-6 p-6">
+        <div className="min-h-screen bg-slate-100 p-6 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Calidad del Aire</h1>
                 {currentStep > 1 && (
