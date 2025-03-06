@@ -1,12 +1,22 @@
 import { useTheme } from "@/hooks/use-theme";
-import { Bell, ChevronsLeft, Moon, Search, Sun, ChevronDown } from "lucide-react";
+import { Bell, ChevronsLeft, Moon, Search, Sun } from "lucide-react";
 import profileImg from "@/assets/profile-image.png";
 import PropTypes from "prop-types";
 import { Menu, Transition } from "@headlessui/react";
 import { Fragment } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext"; // Importar contexto de autenticación
 
 export const Header = ({ collapsed, setCollapsed }) => {
     const { theme, setTheme } = useTheme();
+    const navigate = useNavigate();
+    const { logout } = useAuth(); // Obtener función de logout del contexto
+
+    // Función para manejar el cierre de sesión
+    const handleLogout = () => {
+        logout(); // Limpiar token y estado de autenticación
+        navigate("/login"); // Redirigir al login
+    };
 
     return (
         <header className="relative z-10 flex h-[60px] items-center justify-between bg-white px-4 shadow-md transition-colors dark:bg-slate-900">
@@ -75,59 +85,45 @@ export const Header = ({ collapsed, setCollapsed }) => {
                     >
                         <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800">
                             <div className="p-1">
-                                {/* Elemento: Mi perfil */}
-                                <Menu.Item>
-                                    {({ active }) => (
-                                        <a
-                                            href="/mi-perfil" // Reemplaza con la URL correcta
-                                            className={`${
-                                                active ? "bg-sky-500 text-white" : "text-slate-900 dark:text-white"
-                                            } group flex w-full items-center rounded-md px-4 py-2 text-sm`}
-                                        >
-                                            Mi perfil
-                                        </a>
-                                    )}
-                                </Menu.Item>
-
                                 {/* Elemento: Configuración */}
                                 <Menu.Item>
                                     {({ active }) => (
-                                        <a
-                                            href="/configuracion" // Reemplaza con la URL correcta
+                                        <Link
+                                            to="/configuracion"
                                             className={`${
                                                 active ? "bg-sky-500 text-white" : "text-slate-900 dark:text-white"
                                             } group flex w-full items-center rounded-md px-4 py-2 text-sm`}
                                         >
                                             Configuración
-                                        </a>
+                                        </Link>
                                     )}
                                 </Menu.Item>
 
                                 {/* Elemento: Cerrar sesión */}
                                 <Menu.Item>
                                     {({ active }) => (
-                                        <a
-                                            href="/cerrar-sesion" // Reemplaza con la URL correcta
+                                        <button
+                                            onClick={handleLogout}
                                             className={`${
                                                 active ? "bg-sky-500 text-white" : "text-slate-900 dark:text-white"
                                             } group flex w-full items-center rounded-md px-4 py-2 text-sm`}
                                         >
                                             Cerrar sesión
-                                        </a>
+                                        </button>
                                     )}
                                 </Menu.Item>
 
                                 {/* Elemento: Ayuda */}
                                 <Menu.Item>
                                     {({ active }) => (
-                                        <a
-                                            href="/ayuda" // Reemplaza con la URL correcta
+                                        <Link
+                                            to="/ayuda"
                                             className={`${
                                                 active ? "bg-sky-500 text-white" : "text-slate-900 dark:text-white"
                                             } group flex w-full items-center rounded-md px-4 py-2 text-sm`}
                                         >
                                             Ayuda
-                                        </a>
+                                        </Link>
                                     )}
                                 </Menu.Item>
                             </div>

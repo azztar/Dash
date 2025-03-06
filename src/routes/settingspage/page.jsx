@@ -111,58 +111,6 @@ const SettingsPage = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* Cambio de contraseña */}
-                <div className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Seguridad</h2>
-
-                    <div className="mb-6">
-                        <button
-                            onClick={() => setShowPasswordModal(true)}
-                            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-slate-900 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
-                        >
-                            <Lock size={18} />
-                            Cambiar contraseña
-                        </button>
-                    </div>
-                </div>
-
-                {/* Preferencias de comunicación */}
-                <div className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Comunicaciones</h2>
-
-                    <div className="mb-4 flex items-center">
-                        <input
-                            id="email-notify"
-                            type="checkbox"
-                            checked={emailNotifications}
-                            onChange={() => setEmailNotifications(!emailNotifications)}
-                            className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                        />
-                        <label
-                            htmlFor="email-notify"
-                            className="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                        >
-                            Recibir notificaciones por correo electrónico
-                        </label>
-                    </div>
-
-                    <div className="flex items-center">
-                        <input
-                            id="report-notify"
-                            type="checkbox"
-                            checked={reportNotifications}
-                            onChange={() => setReportNotifications(!reportNotifications)}
-                            className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                        />
-                        <label
-                            htmlFor="report-notify"
-                            className="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                        >
-                            Notificar cuando haya nuevos informes
-                        </label>
-                    </div>
-                </div>
             </Card>
 
             {/* Footer */}
