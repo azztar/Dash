@@ -279,3 +279,103 @@
 .tremor-SelectItem[data-headlessui-state="active"]:hover {
     @apply bg-blue-600 text-white dark:bg-blue-700 dark:text-white;
 }
+
+/* Sobreescribir estilos del date picker en modo oscuro */
+.dark .date-picker-wrapper button,
+.dark .date-picker-wrapper input,
+.dark .date-picker-wrapper span {
+    color: white !important;
+}
+
+.dark .date-picker-wrapper [role="dialog"] {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.dark .date-picker-wrapper [role="grid"] button {
+    color: #e2e8f0 !important;
+}
+
+.dark .date-picker-wrapper [role="grid"] button[aria-selected="true"] {
+    background-color: #2563eb !important;
+    color: white !important;
+}
+
+/* Estilos para el DatePicker en modo oscuro */
+.dark-calendar {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: white !important;
+}
+
+.dark-calendar .react-datepicker__header {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+.dark-calendar .react-datepicker__current-month,
+.dark-calendar .react-datepicker-time__header,
+.dark-calendar .react-datepicker__day-name {
+    color: white !important;
+}
+
+.dark-calendar .react-datepicker__day,
+.dark-calendar .react-datepicker__time-name {
+    color: #e2e8f0 !important;
+}
+
+.dark-calendar .react-datepicker__day:hover {
+    background-color: #334155 !important;
+}
+
+.dark-calendar .react-datepicker__day--selected {
+    background-color: #2563eb !important;
+    color: white !important;
+}
+
+.dark-calendar .react-datepicker__day--today {
+    font-weight: bold;
+    color: #38bdf8 !important;
+}
+
+.dark-calendar .react-datepicker__triangle {
+    border-bottom-color: #0f172a !important;
+}
+
+.dark-calendar .react-datepicker__year-dropdown,
+.dark-calendar .react-datepicker__month-dropdown {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.dark-calendar .react-datepicker__year-option,
+.dark-calendar .react-datepicker__month-option {
+    color: white !important;
+}
+
+.dark-calendar .react-datepicker__year-option:hover,
+.dark-calendar .react-datepicker__month-option:hover {
+    background-color: #334155 !important;
+}
+
+/* Estilos para select en modo oscuro */
+.dark select {
+    background-color: #1e293b;
+    color: #e2e8f0;
+    border-color: #334155;
+}
+
+.dark select option {
+    background-color: #1e293b;
+    color: #e2e8f0;
+}
+
+/* Mejora visual para selects */
+select {
+    appearance: auto;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}

@@ -6,6 +6,7 @@ import { Button } from "@/components/button";
 import { Input } from "@/components/input";
 import { useTheme } from "@/hooks/use-theme"; // Para manejar el tema claro/oscuro
 import { Footer } from "@/layouts/footer"; // Pie de página
+import { PageContainer } from "@/components/PageContainer";
 
 const ReportsPage = () => {
     const [files, setFiles] = useState([]);
@@ -51,9 +52,8 @@ const ReportsPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 p-6 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
-            {/* Título de la página */}
-            <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-slate-50">Informes</h1>
+        <PageContainer>
+            <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-white">Informes</h1>
 
             {/* Sección de subida de archivos (solo para administradores) */}
             {userRole === "admin" && (
@@ -113,7 +113,7 @@ const ReportsPage = () => {
 
             {/* Footer */}
             <Footer />
-        </div>
+        </PageContainer>
     );
 };
 

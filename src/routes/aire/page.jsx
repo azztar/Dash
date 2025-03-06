@@ -13,6 +13,7 @@ import { ConformityTable } from "./components/ConformityTable";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { EmptyState } from "@/components/EmptyState";
+import { PageContainer } from "@/components/PageContainer";
 
 const AirePage = () => {
     const {
@@ -126,7 +127,7 @@ const AirePage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 p-6 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
+        <PageContainer>
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Calidad del Aire</h1>
                 {currentStep > 1 && (
@@ -240,7 +241,7 @@ const AirePage = () => {
                     )}
                 </div>
             )}
-        </div>
+        </PageContainer>
     );
 };
 

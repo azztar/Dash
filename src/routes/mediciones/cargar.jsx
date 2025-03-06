@@ -8,6 +8,7 @@ import { Upload } from "lucide-react";
 import { AdminDateSelector } from "@/components/AdminDateSelector";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { PageContainer } from "@/components/PageContainer";
 
 // 1. Primero, agrega la variable de entorno para la URL del API
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -151,180 +152,188 @@ const DataUploadPage = () => {
     };
 
     return (
-        <div className="p-6">
-            <h1 className="mb-8 text-2xl font-bold">Carga de Mediciones y Declaraciones</h1>
+        <PageContainer>
+            <h1 className="mb-8 text-2xl font-bold text-slate-900 dark:text-white">Carga de Mediciones y Declaraciones</h1>
 
-            <form onSubmit={handleSubmit}>
-                <Card className="space-y-8">
-                    {/* Sección de Selección */}
-                    <div className="space-y-12">
-                        {" "}
-                        {/* Aumentamos el espaciado vertical */}
-                        {/* Cliente */}
-                        <div className="space-y-6">
+            <div className="p-6">
+                <form onSubmit={handleSubmit}>
+                    <Card className="space-y-8 dark:bg-slate-800 dark:text-white">
+                        {/* Sección de Selección */}
+                        <div className="space-y-12">
                             {" "}
-                            {/* Aumentamos el espaciado */}
-                            <h2 className="text-lg font-semibold text-gray-900">Información del Cliente</h2>
-                            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                <div className="relative">
-                                    {" "}
-                                    {/* Añadimos posición relativa */}
-                                    <label className="mb-3 block text-sm font-medium text-gray-700">Cliente</label>
-                                    <div className="relative z-20">
+                            {/* Aumentamos el espaciado vertical */}
+                            {/* Cliente */}
+                            <div className="space-y-6">
+                                {" "}
+                                {/* Aumentamos el espaciado */}
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Información del Cliente</h2>
+                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                                    <div className="relative">
                                         {" "}
-                                        {/* Control del z-index */}
-                                        <Select
-                                            value={selectedClient}
-                                            onValueChange={setSelectedClient}
-                                            placeholder="Seleccione un cliente"
-                                            disabled={loading}
-                                        >
-                                            {clients.map((client) => (
-                                                <SelectItem
-                                                    key={client.id_usuario}
-                                                    value={client.id_usuario}
-                                                >
-                                                    {client.nombre_empresa}
-                                                </SelectItem>
-                                            ))}
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Estación y Parámetro */}
-                        <div className="space-y-6">
-                            <h2 className="text-lg font-semibold text-gray-900">Detalles de Medición</h2>
-                            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                <div className="relative">
-                                    <label className="mb-3 block text-sm font-medium text-gray-700">Estación</label>
-                                    <div className="relative z-10">
-                                        <Select
-                                            value={selectedStation}
-                                            onValueChange={setSelectedStation}
-                                            placeholder="Seleccione una estación"
-                                            disabled={!selectedClient || loading}
-                                        >
-                                            {stations.map((station) => (
-                                                <SelectItem
-                                                    key={station.id_estacion}
-                                                    value={station.id_estacion}
-                                                >
-                                                    {station.nombre_estacion}
-                                                </SelectItem>
-                                            ))}
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                <div className="relative">
-                                    <label className="mb-3 block text-sm font-medium text-gray-700">Parámetro</label>
-                                    <div className="relative z-10">
-                                        <Select
-                                            value={selectedParameter}
-                                            onValueChange={setSelectedParameter}
-                                            placeholder="Seleccione un parámetro"
-                                            disabled={!selectedStation || loading}
-                                        >
-                                            {parameters.map((param) => (
-                                                <SelectItem
-                                                    key={param.id}
-                                                    value={param.id}
-                                                >
-                                                    {param.name}
-                                                </SelectItem>
-                                            ))}
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                <div className="relative">
-                                    <label className="mb-3 block text-sm font-medium text-gray-700">Periodo</label>
-                                    <div className="relative z-10">
-                                        <AdminDateSelector
-                                            selectedDate={selectedDate}
-                                            onSelect={setSelectedDate}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Carga de Archivo */}
-                        <div className="space-y-6">
-                            <h2 className="text-lg font-semibold text-gray-900">Archivos de Datos</h2>
-
-                            {/* Archivo de Mediciones */}
-                            <div className="space-y-4">
-                                <h3 className="text-md font-medium text-gray-700">Mediciones</h3>
-                                <div className="relative z-0">
-                                    <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
-                                        <div className="flex flex-col items-center justify-center pb-6 pt-5">
-                                            <Upload className="mb-3 h-8 w-8 text-gray-400" />
-                                            <p className="mb-2 text-sm text-gray-500">
-                                                <span className="font-semibold">Click para seleccionar archivo de mediciones</span>
-                                            </p>
-                                            <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
+                                        {/* Añadimos posición relativa */}
+                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                                        <div className="relative z-20">
+                                            {" "}
+                                            {/* Control del z-index */}
+                                            <Select
+                                                value={selectedClient}
+                                                onValueChange={setSelectedClient}
+                                                placeholder="Seleccione un cliente"
+                                                disabled={loading}
+                                            >
+                                                {clients.map((client) => (
+                                                    <SelectItem
+                                                        key={client.id_usuario}
+                                                        value={client.id_usuario}
+                                                    >
+                                                        {client.nombre_empresa}
+                                                    </SelectItem>
+                                                ))}
+                                            </Select>
                                         </div>
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            accept=".xlsx,.xls"
-                                            onChange={handleFileUpload}
-                                            disabled={loading}
-                                        />
-                                    </label>
-                                    {file && <p className="mt-2 text-sm text-gray-500">Archivo de mediciones: {file.name}</p>}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Archivo de Declaraciones */}
-                            <div className="space-y-4">
-                                <h3 className="text-md font-medium text-gray-700">Declaraciones de Conformidad</h3>
-                                <div className="relative z-0">
-                                    <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
-                                        <div className="flex flex-col items-center justify-center pb-6 pt-5">
-                                            <Upload className="mb-3 h-8 w-8 text-gray-400" />
-                                            <p className="mb-2 text-sm text-gray-500">
-                                                <span className="font-semibold">Click para seleccionar archivo de declaraciones</span>
-                                            </p>
-                                            <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
+                            {/* Estación y Parámetro */}
+                            <div className="space-y-6">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detalles de Medición</h2>
+                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                                    <div className="relative">
+                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Estación</label>
+                                        <div className="relative z-10">
+                                            <Select
+                                                value={selectedStation}
+                                                onValueChange={setSelectedStation}
+                                                placeholder="Seleccione una estación"
+                                                disabled={!selectedClient || loading}
+                                            >
+                                                {stations.map((station) => (
+                                                    <SelectItem
+                                                        key={station.id_estacion}
+                                                        value={station.id_estacion}
+                                                    >
+                                                        {station.nombre_estacion}
+                                                    </SelectItem>
+                                                ))}
+                                            </Select>
                                         </div>
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            accept=".xlsx,.xls"
-                                            onChange={handleDeclarationFileUpload}
-                                            disabled={loading}
-                                        />
-                                    </label>
-                                    {declarationFile && (
-                                        <p className="mt-2 text-sm text-gray-500">Archivo de declaraciones: {declarationFile.name}</p>
-                                    )}
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Parámetro</label>
+                                        <div className="relative z-10">
+                                            <Select
+                                                value={selectedParameter}
+                                                onValueChange={setSelectedParameter}
+                                                placeholder="Seleccione un parámetro"
+                                                disabled={!selectedStation || loading}
+                                            >
+                                                {parameters.map((param) => (
+                                                    <SelectItem
+                                                        key={param.id}
+                                                        value={param.id}
+                                                    >
+                                                        {param.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Periodo</label>
+                                        <div className="relative z-10 dark:text-white">
+                                            {" "}
+                                            {/* Añade dark:text-white aquí */}
+                                            <div className="date-picker-wrapper dark:text-white">
+                                                {" "}
+                                                {/* Contenedor con clase personalizada */}
+                                                <AdminDateSelector
+                                                    selectedDate={selectedDate}
+                                                    onSelect={setSelectedDate}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Carga de Archivo */}
+                            <div className="space-y-6">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Archivos de Datos</h2>
+
+                                {/* Archivo de Mediciones */}
+                                <div className="space-y-4">
+                                    <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Mediciones</h3>
+                                    <div className="relative z-0">
+                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700">
+                                            <div className="flex flex-col items-center justify-center pb-6 pt-5">
+                                                <Upload className="mb-3 h-8 w-8 text-gray-400 dark:text-gray-300" />
+                                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                                    <span className="font-semibold">Click para seleccionar archivo de mediciones</span>
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">XLSX, XLS (MAX. 10MB)</p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept=".xlsx,.xls"
+                                                onChange={handleFileUpload}
+                                                disabled={loading}
+                                            />
+                                        </label>
+                                        {file && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Archivo de mediciones: {file.name}</p>}
+                                    </div>
+                                </div>
+
+                                {/* Archivo de Declaraciones */}
+                                <div className="space-y-4">
+                                    <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Declaraciones de Conformidad</h3>
+                                    <div className="relative z-0">
+                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
+                                            <div className="flex flex-col items-center justify-center pb-6 pt-5">
+                                                <Upload className="mb-3 h-8 w-8 text-gray-400" />
+                                                <p className="mb-2 text-sm text-gray-500">
+                                                    <span className="font-semibold">Click para seleccionar archivo de declaraciones</span>
+                                                </p>
+                                                <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept=".xlsx,.xls"
+                                                onChange={handleDeclarationFileUpload}
+                                                disabled={loading}
+                                            />
+                                        </label>
+                                        {declarationFile && (
+                                            <p className="mt-2 text-sm text-gray-500">Archivo de declaraciones: {declarationFile.name}</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Botones de Acción */}
-                    <div className="flex justify-end space-x-4 border-t pt-6">
-                        <button
-                            type="button"
-                            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                            disabled={loading}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                            disabled={loading || !file}
-                        >
-                            {loading ? "Cargando..." : "Cargar Datos"}
-                        </button>
-                    </div>
-                </Card>
-            </form>
-        </div>
+                        {/* Botones de Acción */}
+                        <div className="flex justify-end space-x-4 border-t pt-6">
+                            <button
+                                type="button"
+                                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                disabled={loading}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                disabled={loading || !file}
+                            >
+                                {loading ? "Cargando..." : "Cargar Datos"}
+                            </button>
+                        </div>
+                    </Card>
+                </form>
+            </div>
+        </PageContainer>
     );
 };
 

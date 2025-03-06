@@ -135,13 +135,14 @@ const AdminFiles = () => {
                     <select
                         value={selectedClient}
                         onChange={handleClientChange}
-                        className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800"
+                        className="w-full rounded-lg border border-gray-300 p-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     >
                         <option value="">Seleccione un cliente</option>
                         {clients.map((client) => (
                             <option
                                 key={client.id_usuario}
                                 value={client.id_usuario}
+                                className="dark:bg-gray-800 dark:text-white"
                             >
                                 {client.nombre_empresa || client.nombre_usuario}
                             </option>
