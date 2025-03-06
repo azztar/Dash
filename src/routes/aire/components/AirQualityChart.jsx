@@ -118,14 +118,12 @@ export const AirQualityChart = ({ data, parameterName }) => {
                                 if (!active || !payload?.length) return null;
                                 const m = payload[0].payload;
                                 return (
-                                    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-slate-800">
-                                        <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Muestra {m.muestra}</h3>
+                                    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+                                        <h3 className="mb-2 font-semibold text-gray-900">Muestra {m.muestra}</h3>
                                         <div className="space-y-1 text-sm">
-                                            <p className="text-gray-600 dark:text-gray-400">Hora: {m.hora}</p>
-                                            <p className="font-medium text-blue-600 dark:text-blue-400">
-                                                Concentración: {m.concentracion.toFixed(2)} µg/m³
-                                            </p>
-                                            <p className={m.cumpleNorma ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                            <p className="text-gray-600">Hora: {m.hora}</p>
+                                            <p className="font-medium text-blue-600">Concentración: {m.concentracion.toFixed(2)} µg/m³</p>
+                                            <p className={m.cumpleNorma ? "text-green-600" : "text-red-600"}>
                                                 {m.cumpleNorma
                                                     ? `Cumple la norma (${m.excedencia}% del límite)`
                                                     : `Excede la norma (${m.excedencia}% del límite)`}
