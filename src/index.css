@@ -67,19 +67,19 @@
     }
 
     .card {
-        @apply flex flex-col gap-y-4 rounded-lg border border-slate-300 bg-white p-4 transition-colors dark:border-slate-700 dark:bg-slate-900;
+        @apply bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow;
     }
 
     .card-header {
-        @apply flex items-center gap-x-2;
+        @apply border-b border-gray-200 dark:border-gray-700 p-4;
     }
 
     .card-title {
-        @apply font-medium text-slate-900 transition-colors dark:text-slate-50;
+        @apply text-lg font-semibold text-gray-900 dark:text-white;
     }
 
     .card-body {
-        @apply flex flex-col gap-y-2 rounded-lg p-4;
+        @apply p-4 text-gray-700 dark:text-gray-300;
     }
 
     .table {
@@ -100,6 +100,18 @@
 
     .table-cell {
         @apply w-fit whitespace-nowrap p-4 font-medium;
+    }
+
+    .text-primary {
+        @apply text-gray-900 dark:text-white;
+    }
+
+    .text-secondary {
+        @apply text-gray-700 dark:text-gray-300;
+    }
+
+    .text-muted {
+        @apply text-gray-500 dark:text-gray-400;
     }
 }
 

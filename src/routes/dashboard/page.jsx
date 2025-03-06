@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, BarChart, Bar, Legend, CartesianGrid } from "recharts";
+import {
+    Area,
+    AreaChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar,
+    Legend,
+    CartesianGrid,
+    LineChart,
+    Line,
+    ReferenceLine,
+} from "recharts";
 import { useTheme } from "@/hooks/use-theme";
 import { Footer } from "@/layouts/footer";
 import { useNavigate } from "react-router-dom";
@@ -99,6 +116,13 @@ const DashboardPage = () => {
                             setMeasurements(measurementsResponse.data.data);
                             setMeasurementsByType(measurementsResponse.data.groupedByParameter || []);
                             setLatestMeasurement(measurementsResponse.data.data[0]);
+
+                            // Guardar en localStorage aquí, donde measurementsResponse está disponible
+                            localStorage.setItem("dashboard_measurements", JSON.stringify(measurementsResponse.data.data || []));
+                            localStorage.setItem(
+                                "dashboard_latestMeasurement",
+                                measurementsResponse.data.data.length > 0 ? JSON.stringify(measurementsResponse.data.data[0]) : null,
+                            );
                         } else {
                             console.log("No hay datos de mediciones disponibles");
                         }
@@ -116,18 +140,9 @@ const DashboardPage = () => {
                 setIsLoading(false);
             }
 
-            const saveDataToLocalStorage = () => {
-                // Guardar datos importantes en localStorage
-                localStorage.setItem("dashboard_measurements", JSON.stringify(measurementsResponse.data.data || []));
-                localStorage.setItem("dashboard_files", JSON.stringify(filesResponse.data.files || []));
-                localStorage.setItem(
-                    "dashboard_latestMeasurement",
-                    measurementsResponse.data.data?.length > 0 ? JSON.stringify(measurementsResponse.data.data[0]) : null,
-                );
-                localStorage.setItem("dashboard_timestamp", Date.now().toString());
-            };
-
-            saveDataToLocalStorage();
+            // Guardar datos en localStorage justo después de establecer los estados
+            localStorage.setItem("dashboard_files", JSON.stringify(files));
+            localStorage.setItem("dashboard_timestamp", Date.now().toString());
         };
 
         fetchData();
@@ -253,10 +268,10 @@ const DashboardPage = () => {
                 <>
                     <div className="card">
                         <div className="card-header">
-                            <div className="w-fit rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
+                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <Wind size={26} />
+                                <p className="card-title">{latestMeasurement.parametro}</p>
                             </div>
-                            <p className="card-title">{latestMeasurement.parametro}</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">
@@ -277,8 +292,8 @@ const DashboardPage = () => {
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <Cloud size={26} />
+                                <p className="card-title">Estado</p>
                             </div>
-                            <p className="card-title">Estado</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{isHigh ? "Alerta" : "Normal"}</p>
@@ -297,8 +312,8 @@ const DashboardPage = () => {
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <Workflow size={26} />
+                                <p className="card-title">Tendencia</p>
                             </div>
-                            <p className="card-title">Tendencia</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">
@@ -325,8 +340,8 @@ const DashboardPage = () => {
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <FileText size={26} />
+                                <p className="card-title">Archivos</p>
                             </div>
-                            <p className="card-title">Archivos</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
@@ -345,8 +360,8 @@ const DashboardPage = () => {
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <FileText size={26} />
+                                <p className="card-title">Informes</p>
                             </div>
-                            <p className="card-title">Informes</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver informes</p>
@@ -363,16 +378,18 @@ const DashboardPage = () => {
                         </div>
                         <div className="card-body">
                             <div className="flex items-center justify-between">
-                                <p>Norma CO (8h)</p>
-                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">CUMPLE</span>
+                                <p className="text-slate-800 dark:text-slate-200">Norma CO (8h)</p>
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    CUMPLE
+                                </span>
                             </div>
-                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                                 <div
                                     className="h-full bg-green-500"
                                     style={{ width: "28%" }}
                                 ></div>
                             </div>
-                            <p className="mt-1 text-xs text-gray-500">Concentración actual: 28% del límite permitido</p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Concentración actual: 28% del límite permitido</p>
                         </div>
                     </div>
                 </>
@@ -433,9 +450,111 @@ const DashboardPage = () => {
         return parseFloat(strValue.replace(",", "."));
     }
 
+    // Función para obtener las mediciones máximas agrupadas por parámetro
+    const getMaxMeasurementsByParameter = () => {
+        if (measurements.length === 0) return [];
+
+        // Agrupar mediciones por parámetro
+        const groupedByParam = {};
+
+        measurements.forEach((m) => {
+            // Si el parámetro no existe en el grupo, inicializarlo
+            if (!groupedByParam[m.parametro]) {
+                groupedByParam[m.parametro] = [];
+            }
+
+            // Añadir la medición al grupo correspondiente
+            groupedByParam[m.parametro].push(m);
+        });
+
+        // Encontrar el máximo de cada parámetro
+        return Object.keys(groupedByParam)
+            .map((param) => {
+                const paramMeasurements = groupedByParam[param];
+
+                // Encontrar la medición con la concentración más alta
+                const maxMeasurement = paramMeasurements.reduce((max, current) => {
+                    return parseNumberWithLocale(current.concentracion) > parseNumberWithLocale(max.concentracion) ? current : max;
+                }, paramMeasurements[0]);
+
+                return {
+                    parametro: param,
+                    concentracion: maxMeasurement.concentracion,
+                    fecha: maxMeasurement.fecha_muestra,
+                    unidad: maxMeasurement.unidad || "µg/m³",
+                    limite: maxMeasurement.valor_limite,
+                    estacion: maxMeasurement.id_estacion,
+                    periodo: maxMeasurement.fecha_inicio_muestra,
+                };
+            })
+            .sort((a, b) => {
+                // Ordenar por porcentaje respecto al límite (descendente)
+                const percentA = parseNumberWithLocale(a.concentracion) / a.limite;
+                const percentB = parseNumberWithLocale(b.concentracion) / b.limite;
+                return percentB - percentA;
+            });
+    };
+
+    // Función para preparar datos históricos para el gráfico
+    const prepareHistoricalDataByParameter = () => {
+        if (measurements.length === 0) return [];
+
+        // Agrupar mediciones por fecha y parámetro
+        const groupedByDate = {};
+
+        measurements.forEach((m) => {
+            const date = new Date(m.fecha_muestra).toLocaleDateString();
+
+            if (!groupedByDate[date]) {
+                groupedByDate[date] = {};
+            }
+
+            groupedByDate[date][m.parametro] = parseNumberWithLocale(m.concentracion);
+        });
+
+        // Convertir el objeto agrupado en un array de datos
+        return Object.keys(groupedByDate).map((date) => ({
+            fecha: date,
+            ...groupedByDate[date],
+        }));
+    };
+
+    // Preparar datos para gráfico de evolución histórica
+    const prepareHistoricalData = () => {
+        if (measurements.length === 0) return [];
+
+        // Agrupar mediciones por fecha
+        const groupedByDate = {};
+        measurements.forEach((m) => {
+            const fechaStr = new Date(m.fecha_muestra).toLocaleDateString();
+
+            if (!groupedByDate[fechaStr]) {
+                groupedByDate[fechaStr] = {
+                    fecha: fechaStr,
+                    SO2: null,
+                    PM10: null,
+                };
+            }
+
+            // Guardar valor máximo para cada parámetro por fecha
+            if (m.parametro === "SO2") {
+                const valor = parseNumberWithLocale(m.concentracion);
+                groupedByDate[fechaStr].SO2 = Math.max(groupedByDate[fechaStr].SO2 || 0, valor);
+            } else if (m.parametro === "PM10") {
+                const valor = parseNumberWithLocale(m.concentracion);
+                groupedByDate[fechaStr].PM10 = Math.max(groupedByDate[fechaStr].PM10 || 0, valor);
+            }
+        });
+
+        // Convertir a array y ordenar por fecha
+        return Object.values(groupedByDate)
+            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+            .slice(0, 10); // Mostrar solo las 10 fechas más recientes
+    };
+
     return (
-        <div className="flex flex-col gap-y-4">
-            <h1 className="title">Dashboard</h1>
+        <div className="flex flex-col gap-y-4 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">Dashboard</h1>
 
             {/* Tarjetas de bienvenida y estado general */}
             <div className="card bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -478,14 +597,14 @@ const DashboardPage = () => {
                                         {notification.icon}
                                         <div>
                                             <h3 className="font-medium text-slate-900 dark:text-slate-100">{notification.title}</h3>
-                                            <p className="text-sm text-slate-500">{notification.description}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">{notification.description}</p>
                                         </div>
                                     </div>
                                     <ChevronRight className="h-5 w-5 text-slate-400" />
                                 </div>
                             ))
                         ) : (
-                            <div className="p-4 text-center text-slate-500">No hay notificaciones nuevas</div>
+                            <div className="p-4 text-center text-slate-500 dark:text-slate-400">No hay notificaciones nuevas</div>
                         )}
                     </div>
                 </div>
@@ -507,7 +626,10 @@ const DashboardPage = () => {
                                     data={prepareChartData()}
                                     margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
                                 >
-                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        stroke={theme === "light" ? "#e2e8f0" : "#334155"}
+                                    />
                                     <XAxis
                                         dataKey="name"
                                         strokeWidth={0}
@@ -521,7 +643,18 @@ const DashboardPage = () => {
                                         stroke={theme === "light" ? "#475569" : "#94a3b8"}
                                         tickMargin={6}
                                     />
-                                    <Tooltip />
+                                    <Tooltip
+                                        content={({ active, payload, label }) => {
+                                            if (active && payload && payload.length) {
+                                                return (
+                                                    <div className="rounded-lg border border-gray-200 bg-white p-2 shadow dark:border-gray-700 dark:bg-slate-800 dark:text-white">
+                                                        {/* contenido... */}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
                                     <Legend />
                                     <Bar
                                         dataKey="Valor"
@@ -578,35 +711,112 @@ const DashboardPage = () => {
 
             <div className="card">
                 <div className="card-header">
-                    <p className="card-title">Resumen de Mediciones</p>
+                    <p className="card-title">Mediciones Máximas por Parámetro</p>
                 </div>
                 <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-sm text-slate-500">Promedio CO:</p>
-                            <p className="text-xl font-bold">
-                                {measurements.length > 0
-                                    ? (
-                                          measurements.reduce((acc, m) => acc + parseNumberWithLocale(m.concentracion), 0) / measurements.length
-                                      ).toFixed(2)
-                                    : "N/A"}{" "}
-                                µg/m³
-                            </p>
+                    {getMaxMeasurementsByParameter().length > 0 ? (
+                        <div className="space-y-4">
+                            {getMaxMeasurementsByParameter().map((item, index) => (
+                                <div
+                                    key={index}
+                                    className="border-b pb-3 last:border-0 last:pb-0"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-medium text-slate-700 dark:text-slate-300">{item.parametro}</p>
+                                        <span
+                                            className={`rounded-md px-2 py-1 text-xs font-medium ${
+                                                parseNumberWithLocale(item.concentracion) / item.limite > 0.8
+                                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                            }`}
+                                        >
+                                            {Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100)}% del límite
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between">
+                                        <p className="text-xl font-bold">
+                                            {parseNumberWithLocale(item.concentracion).toFixed(2)} {item.unidad}
+                                        </p>
+                                        <p className="text-sm text-slate-500">{new Date(item.fecha).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div>
-                            <p className="text-sm text-slate-500">Medición más alta:</p>
-                            <p className="text-xl font-bold">
-                                {measurements.length > 0
-                                    ? Math.max(...measurements.map((m) => parseNumberWithLocale(m.concentracion))).toFixed(2)
-                                    : "N/A"}{" "}
-                                µg/m³
-                            </p>
-                        </div>
-                    </div>
+                    ) : (
+                        <p className="text-center text-slate-500">No hay datos de mediciones disponibles</p>
+                    )}
                 </div>
             </div>
 
-            <div className="text-right text-sm text-slate-500">
+            <div className="card mt-4">
+                <div className="card-header">
+                    <p className="card-title">Evolución Histórica por Parámetro</p>
+                </div>
+                <div className="card-body p-0">
+                    <ResponsiveContainer
+                        width="100%"
+                        height={300}
+                    >
+                        <LineChart
+                            data={prepareHistoricalData()}
+                            margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
+                        >
+                            <CartesianGrid
+                                strokeDasharray="3 3"
+                                stroke={theme === "light" ? "#e2e8f0" : "#334155"}
+                            />
+                            <XAxis
+                                dataKey="fecha"
+                                strokeWidth={0}
+                                angle={-45}
+                                textAnchor="end"
+                                tickMargin={8}
+                                stroke={theme === "light" ? "#475569" : "#94a3b8"}
+                            />
+                            <YAxis
+                                strokeWidth={0}
+                                stroke={theme === "light" ? "#475569" : "#94a3b8"}
+                                tickMargin={6}
+                            />
+                            <Tooltip
+                                formatter={(value) => [`${value} μg/m³`, "Concentración"]}
+                                labelFormatter={(label) => `Fecha: ${label}`}
+                            />
+                            <Legend />
+                            <Line
+                                type="monotone"
+                                dataKey="SO2"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dot={{ r: 3 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="PM10"
+                                stroke="#ef4444"
+                                strokeWidth={2}
+                                dot={{ r: 3 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <ReferenceLine
+                                y={50}
+                                stroke="#3b82f6"
+                                strokeDasharray="3 3"
+                                label={{ position: "top", value: "Límite SO2", fill: theme === "light" ? "#3b82f6" : "#60a5fa" }}
+                            />
+                            <ReferenceLine
+                                y={100}
+                                stroke="#ef4444"
+                                strokeDasharray="3 3"
+                                label={{ position: "top", value: "Límite PM10", fill: theme === "light" ? "#ef4444" : "#f87171" }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="text-right text-sm text-slate-500 dark:text-slate-400">
                 <p>Última actualización: {new Date().toLocaleString()}</p>
             </div>
 

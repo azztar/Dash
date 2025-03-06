@@ -11,7 +11,7 @@ export const ConformityTable = ({ data = [] }) => {
             <h2 className="mb-4 text-lg font-semibold">Declaración de Conformidad</h2>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Norma (µg/m³)</th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Zona Seguridad</th>
