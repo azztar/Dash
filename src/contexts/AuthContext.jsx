@@ -7,6 +7,24 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem("token"));
     const [loading, setLoading] = useState(true);
 
+    // Añadir esta nueva función aquí
+    const clearUserSpecificCache = (userId) => {
+        // Guarda el ID del usuario actual en localStorage
+        const currentCacheUser = localStorage.getItem("cache_user_id");
+
+        // Si el usuario ha cambiado, limpia el caché específico
+        if (currentCacheUser && currentCacheUser !== userId.toString()) {
+            localStorage.removeItem("dashboard_measurements");
+            localStorage.removeItem("dashboard_latestMeasurement");
+            localStorage.removeItem("dashboard_files");
+            localStorage.removeItem("dashboard_timestamp");
+            console.log("Caché limpiado por cambio de usuario");
+        }
+
+        // Actualiza el ID del usuario actual
+        localStorage.setItem("cache_user_id", userId.toString());
+    };
+
     useEffect(() => {
         const verifyAuth = async () => {
             if (token) {
@@ -38,6 +56,11 @@ export const AuthProvider = ({ children }) => {
         setToken(newToken);
         setUser(userData);
         localStorage.setItem("user_data", JSON.stringify(userData));
+
+        // Añadir esta línea:
+        if (userData && userData.id) {
+            clearUserSpecificCache(userData.id);
+        }
     };
 
     const handleLogout = () => {

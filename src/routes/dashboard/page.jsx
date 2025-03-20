@@ -42,6 +42,32 @@ import {
     File,
 } from "lucide-react";
 
+// Mapa de colores para los diferentes parámetros
+const COLORS_MAP = {
+    PM10: "#ef4444",
+    SO2: "#3b82f6",
+    "PM2.5": "#a855f7",
+    NO2: "#22c55e",
+    CO: "#fb923c",
+    O3: "#06b6d4",
+};
+
+// Función para aclarar colores en dark mode
+const lightenColor = (hexColor) => {
+    // Convertir el color hex a RGB
+    let r = parseInt(hexColor.slice(1, 3), 16);
+    let g = parseInt(hexColor.slice(3, 5), 16);
+    let b = parseInt(hexColor.slice(5, 7), 16);
+
+    // Aclarar los componentes
+    r = Math.min(255, r + 60);
+    g = Math.min(255, g + 60);
+    b = Math.min(255, b + 60);
+
+    // Convertir de vuelta a hexadecimal
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+};
+
 const DashboardPage = () => {
     const { theme } = useTheme();
     const navigate = useNavigate();
@@ -80,15 +106,46 @@ const DashboardPage = () => {
 
     const [notifications, setNotifications] = useState([]);
     const [measurementsByType, setMeasurementsByType] = useState([]);
+    const [parametersLimits, setParametersLimits] = useState({});
 
     const [userDisplay, setUserDisplay] = useState(() => {
         const savedUser = localStorage.getItem("user_data");
         return savedUser ? JSON.parse(savedUser) : user;
     });
 
+    // Añadir este useEffect al inicio:
+    useEffect(() => {
+        // Limpiar caché en montaje inicial para garantizar datos frescos
+        if (user?.id) {
+            const storedUserId = localStorage.getItem("current_dashboard_user");
+            if (!storedUserId || storedUserId !== user.id.toString()) {
+                console.log("Limpiando caché por cambio de usuario o primer carga");
+                localStorage.removeItem("dashboard_measurements");
+                localStorage.removeItem("dashboard_latestMeasurement");
+                localStorage.removeItem("dashboard_files");
+                localStorage.setItem("current_dashboard_user", user.id.toString());
+            }
+        }
+    }, [user?.id]);
+
     // Función para cargar datos del usuario
     useEffect(() => {
         if (!token) return;
+
+        // AÑADIR ESTA VERIFICACIÓN DE USUARIO AQUÍ
+        const cachedUserId = localStorage.getItem("cache_user_id");
+        if (user?.id && cachedUserId && cachedUserId !== user.id.toString()) {
+            // Si el usuario ha cambiado, forzar limpieza del caché
+            console.log("Usuario cambiado, limpiando caché...");
+            localStorage.removeItem("dashboard_measurements");
+            localStorage.removeItem("dashboard_latestMeasurement");
+            localStorage.removeItem("dashboard_files");
+            localStorage.removeItem("dashboard_timestamp");
+            localStorage.setItem("cache_user_id", user.id.toString());
+        } else if (user?.id && !cachedUserId) {
+            // Si es primera carga, establecer el ID de usuario
+            localStorage.setItem("cache_user_id", user.id.toString());
+        }
 
         const lastFetch = localStorage.getItem("dashboard_timestamp");
         const currentTime = Date.now();
@@ -123,6 +180,8 @@ const DashboardPage = () => {
                             setMeasurements(measurementsResponse.data.data);
                             setMeasurementsByType(measurementsResponse.data.groupedByParameter || []);
                             setLatestMeasurement(measurementsResponse.data.data[0]);
+                            // Añadir esta línea:
+                            setParametersLimits(measurementsResponse.data.parametersLimits || {});
 
                             // Guardar en localStorage aquí, donde measurementsResponse está disponible
                             localStorage.setItem("dashboard_measurements", JSON.stringify(measurementsResponse.data.data || []));
@@ -130,6 +189,12 @@ const DashboardPage = () => {
                                 "dashboard_latestMeasurement",
                                 measurementsResponse.data.data.length > 0 ? JSON.stringify(measurementsResponse.data.data[0]) : null,
                             );
+
+                            // Añadir esto después de procesar la respuesta API
+                            console.log("Datos para gráfico de distribución:", {
+                                raw: measurementsResponse.data.groupedByParameter,
+                                processed: prepareParametersData(),
+                            });
                         } else {
                             console.log("No hay datos de mediciones disponibles");
                         }
@@ -224,32 +289,57 @@ const DashboardPage = () => {
 
     // Preparar datos para gráficos
     const prepareChartData = () => {
-        if (measurements.length === 0) {
+        if (measurements.length === 0) return [];
+
+        // Crear un mapa para asegurar valores únicos
+        const uniqueData = [];
+        const usedDates = new Set();
+
+        // Procesar los datos para evitar duplicados
+        measurements.forEach((item, index) => {
+            // Formatear la fecha de manera consistente
+            const dateStr = new Date(item.fecha_muestra).toLocaleDateString();
+
+            // Si ya tenemos datos para esta fecha, no la agregamos de nuevo
+            if (!usedDates.has(dateStr)) {
+                usedDates.add(dateStr);
+
+                // Pequeña variación en valores idénticos para evitar colisiones
+                const randomOffset = index * 0.001; // Offset minúsculo
+
+                uniqueData.push({
+                    name: dateStr,
+                    Valor: parseFloat((parseFloat(item.concentracion) + randomOffset).toFixed(2)),
+                    Límite: parseFloat(item.valor_limite),
+                    // ID genuinamente único
+                    id: `measure-${index}-${Date.now()}`,
+                });
+            }
+        });
+
+        // Tomar solo los últimos 10 elementos para evitar sobrecarga
+        return uniqueData.slice(-10);
+    };
+
+    // 1. Mejora en la función de preparación de datos
+    const prepareParametersData = () => {
+        if (!measurementsByType || measurementsByType.length === 0) {
             return [];
         }
 
-        return measurements
-            .map((item, index) => ({
-                name: new Date(item.fecha_muestra).toLocaleDateString(),
-                Valor: item.concentracion,
-                Límite: item.valor_limite,
-                id: `measurement-${item.id_medicion || index}`, // Añadir ID único
-            }))
-            .slice(0, 10); // Mostrar solo los últimos 10
-    };
+        // Asegurar que los valores suman 100% para mejor visualización
+        const total = measurementsByType.reduce((sum, item) => sum + item.value, 0);
 
-    const prepareParametersData = () => {
-        if (!measurementsByType || measurementsByType.length === 0) {
-            // Datos de ejemplo si no hay reales
-            return [
-                { name: "PM10", value: 35 },
-                { name: "CO", value: 25 },
-                { name: "SO2", value: 20 },
-                { name: "NO2", value: 20 },
-            ];
-        }
-
-        return measurementsByType;
+        return measurementsByType.map((item) => ({
+            name: item.name,
+            value: item.value,
+            percentage: ((item.value / total) * 100).toFixed(1),
+            // Asumimos que estos datos están disponibles o se pueden calcular
+            max: item.max || 0,
+            min: item.min || 0,
+            avg: item.avg || 0,
+            unit: item.unit || "µg/m³",
+        }));
     };
 
     // Constantes para gráficos
@@ -285,25 +375,30 @@ const DashboardPage = () => {
 
             return (
                 <>
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
+                    {/* Reemplazar la primera tarjeta de indicadores con diseño corporativo */}
+                    <div className="card group transition-all hover:border-blue-200 dark:hover:border-blue-800">
+                        <div className="card-header border-b-0">
+                            <div className="dashboard-icon bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 dark:bg-blue-600/10 dark:text-blue-400 dark:group-hover:bg-blue-600/20">
                                 <Wind size={26} />
-                                <p className="card-title">{latestMeasurement.parametro}</p>
                             </div>
+                            <p className="card-title">{latestMeasurement.parametro}</p>
                         </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">
-                                {paramValue} <span className="text-lg font-normal">µg/m³</span>
+                        <div className="card-body bg-gradient-to-br from-slate-50 to-slate-100 pt-2 dark:from-slate-900 dark:to-slate-950">
+                            <p className="indicator-value">
+                                {paramValue} <span className="text-lg font-normal opacity-70">µg/m³</span>
                             </p>
-                            <span
-                                className={`flex w-fit items-center gap-x-2 rounded-full border px-2 py-1 font-medium ${
-                                    isHigh ? "border-amber-500 text-amber-500" : "border-blue-500 text-blue-500"
-                                }`}
-                            >
+                            <span className={`indicator-badge mt-2 ${isHigh ? "border-amber-500 text-amber-500" : "border-blue-500 text-blue-500"}`}>
                                 {isHigh ? <TrendingUp size={18} /> : <CheckCircle size={18} />}
                                 {percentage}% del límite
                             </span>
+                            <div className="mt-3 h-1 w-full rounded-full bg-slate-200 dark:bg-slate-800">
+                                <div
+                                    className={`h-full rounded-full ${
+                                        percentage > 80 ? "bg-red-500" : percentage > 50 ? "bg-amber-500" : "bg-green-500"
+                                    }`}
+                                    style={{ width: `${percentage}%` }}
+                                ></div>
+                            </div>
                         </div>
                     </div>
 
@@ -359,8 +454,8 @@ const DashboardPage = () => {
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <FileText size={26} />
-                                <p className="card-title">Archivos</p>
                             </div>
+                            <p className="card-title">Archivos</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
                             <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
@@ -370,6 +465,44 @@ const DashboardPage = () => {
                             </span>
                         </div>
                     </div>
+
+                    {files && files.length > 0 ? (
+                        <div
+                            className="card"
+                            onClick={() => navigate("/informes")}
+                            style={{ cursor: "pointer" }}
+                        >
+                            <div className="card-header">
+                                <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
+                                    <FileText size={26} />
+                                </div>
+                                <p className="card-title">Informes</p>
+                            </div>
+                            <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
+                                <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver informes</p>
+                                <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
+                                    <FileText size={18} />
+                                    Disponibles
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="card">
+                            <div className="card-header">
+                                <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
+                                    <FileText size={26} />
+                                </div>
+                                <p className="card-title">Informes</p>
+                            </div>
+                            <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
+                                <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Sin informes</p>
+                                <span className="flex w-fit items-center gap-x-2 rounded-full border border-gray-400 px-2 py-1 font-medium text-gray-500">
+                                    <AlertCircle size={18} />
+                                    No hay informes disponibles
+                                </span>
+                            </div>
+                        </div>
+                    )}
 
                     <div
                         className="card"
@@ -397,18 +530,39 @@ const DashboardPage = () => {
                         </div>
                         <div className="card-body">
                             <div className="flex items-center justify-between">
-                                <p className="text-slate-800 dark:text-slate-200">Norma CO (8h)</p>
-                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                    CUMPLE
-                                </span>
+                                <p className="text-slate-800 dark:text-slate-200">
+                                    {latestMeasurement.parametro || "Parámetro"} ({latestMeasurement.unidad || "µg/m³"})
+                                </p>
+                                {parseNumberWithLocale(latestMeasurement.concentracion) <= latestMeasurement.valor_limite ? (
+                                    <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                        CUMPLE
+                                    </span>
+                                ) : (
+                                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                        NO CUMPLE
+                                    </span>
+                                )}
                             </div>
                             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                                <div
-                                    className="h-full bg-green-500"
-                                    style={{ width: "28%" }}
-                                ></div>
+                                {(() => {
+                                    const percent = Math.min(
+                                        100,
+                                        Math.round((parseNumberWithLocale(latestMeasurement.concentracion) / latestMeasurement.valor_limite) * 100),
+                                    );
+                                    const colorClass = percent > 80 ? "bg-red-500" : percent > 50 ? "bg-amber-500" : "bg-green-500";
+                                    return (
+                                        <div
+                                            className={`h-full ${colorClass}`}
+                                            style={{ width: `${percent}%` }}
+                                        ></div>
+                                    );
+                                })()}
                             </div>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Concentración actual: 28% del límite permitido</p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Concentración actual:{" "}
+                                {Math.round((parseNumberWithLocale(latestMeasurement.concentracion) / latestMeasurement.valor_limite) * 100)}% del
+                                límite permitido
+                            </p>
                         </div>
                     </div>
                 </>
@@ -429,10 +583,10 @@ const DashboardPage = () => {
                             <p className="card-title">Calidad del aire</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver datos</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <BarChart2 size={18} />
-                                Ver mediciones
+                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Sin datos</p>
+                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-gray-400 px-2 py-1 font-medium text-gray-500">
+                                <AlertCircle size={18} />
+                                No hay mediciones disponibles
                             </span>
                         </div>
                     </div>
@@ -575,17 +729,45 @@ const DashboardPage = () => {
         <div className="flex flex-col gap-y-4 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">Dashboard</h1>
 
-            {/* Tarjetas de bienvenida y estado general */}
-            <div className="card bg-gradient-to-r from-blue-500 to-blue-700 text-white">
-                <div className="bg-transparent p-6">
-                    <h2 className="text-2xl font-bold">
-                        Bienvenido, {userDisplay?.nombre || user?.nombre || (user?.rol === "administrador" ? "Administrador" : "Usuario")}
-                    </h2>
-                    <p className="mt-2 opacity-90">
-                        {user?.rol === "cliente"
-                            ? `Panel de control para ${userDisplay?.empresa || user?.empresa || "su empresa"}`
-                            : "Aquí encontrarás un resumen de la información más relevante"}
-                    </p>
+            {/* Reemplazar la tarjeta de bienvenida por un header corporativo */}
+            <div className="mb-6">
+                <div className="relative mb-4 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 p-8 text-white shadow-lg">
+                    <div className="relative z-10">
+                        <div className="flex items-center">
+                            {/* Aquí podrías agregar un logo */}
+                            <div className="mr-4">
+                                {user?.empresa_logo ? (
+                                    <img
+                                        src={user.empresa_logo}
+                                        alt="Logo"
+                                        className="h-12 w-12 rounded-lg"
+                                    />
+                                ) : (
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 font-bold">
+                                        {userDisplay?.empresa?.charAt(0) || "E"}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold">
+                                    Bienvenido, {userDisplay?.nombre || user?.nombre || (user?.rol === "administrador" ? "Administrador" : "Usuario")}
+                                </h2>
+                                <p className="mt-2 text-sm opacity-90">
+                                    {user?.rol === "cliente"
+                                        ? `Panel de control para ${userDisplay?.empresa || user?.empresa || "su empresa"}`
+                                        : "Aquí encontrarás un resumen de la información más relevante"}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4 flex items-center gap-4">
+                            <div className="rounded-md bg-white/15 px-3 py-1 text-sm backdrop-blur-sm">
+                                Última actualización: {new Date().toLocaleString()}
+                            </div>
+                            <div className="rounded-md bg-white/15 px-3 py-1 text-sm backdrop-blur-sm">{notifications.length} notificaciones</div>
+                        </div>
+                    </div>
+                    <div className="absolute bottom-0 right-0 h-40 w-40 translate-x-8 translate-y-8 rounded-full bg-white/10"></div>
+                    <div className="absolute right-32 top-10 h-16 w-16 rounded-full bg-white/10"></div>
                 </div>
             </div>
 
@@ -641,10 +823,51 @@ const DashboardPage = () => {
                                 width="100%"
                                 height={300}
                             >
+                                {/* Usar una clave única para toda la gráfica */}
                                 <BarChart
+                                    key={`chart-${Date.now()}`}
                                     data={isMobile ? prepareChartData().filter((_, i) => i % 2 === 0) : prepareChartData()}
-                                    margin={{ top: 10, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
+                                    className="corporate-chart"
                                 >
+                                    <defs>
+                                        <linearGradient
+                                            id="colorValor"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#3b82f6"
+                                                stopOpacity={0.8}
+                                            />
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#3b82f6"
+                                                stopOpacity={0.2}
+                                            />
+                                        </linearGradient>
+                                        <linearGradient
+                                            id="colorLimite"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#ef4444"
+                                                stopOpacity={0.8}
+                                            />
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#ef4444"
+                                                stopOpacity={0.2}
+                                            />
+                                        </linearGradient>
+                                    </defs>
                                     <CartesianGrid
                                         strokeDasharray="3 3"
                                         stroke={theme === "light" ? "#e2e8f0" : "#334155"}
@@ -668,28 +891,31 @@ const DashboardPage = () => {
                                     />
                                     <Tooltip
                                         cursor={{ strokeDasharray: "3 3" }}
-                                        wrapperStyle={{
-                                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                                            padding: isMobile ? "15px" : "10px",
-                                            border: "1px solid #ccc",
-                                            borderRadius: "5px",
-                                            fontSize: isMobile ? "14px" : "12px",
+                                        contentStyle={{
+                                            backgroundColor: theme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(30, 41, 59, 0.95)",
+                                            borderRadius: "8px",
+                                            border: theme === "light" ? "1px solid #e2e8f0" : "1px solid #334155",
+                                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                            padding: "10px 14px",
                                         }}
                                     />
-                                    <Legend />
+                                    <Legend
+                                        wrapperStyle={{ paddingTop: "10px" }}
+                                        iconType="circle"
+                                    />
                                     <Bar
                                         dataKey="Valor"
                                         name="Concentración"
-                                        fill="#3b82f6"
-                                        // Añadir esto para resolver el problema de claves duplicadas
+                                        fill="url(#colorValor)"
                                         isAnimationActive={false}
+                                        radius={[4, 4, 0, 0]}
                                     />
                                     <Bar
                                         dataKey="Límite"
                                         name="Límite Permitido"
-                                        fill="#ef4444"
-                                        // Añadir esto para resolver el problema de claves duplicadas
+                                        fill="url(#colorLimite)"
                                         isAnimationActive={false}
+                                        radius={[4, 4, 0, 0]}
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -701,76 +927,193 @@ const DashboardPage = () => {
                     </div>
                 </div>
 
+                {/* 2. Mejora en el renderizado del gráfico */}
                 <div className="card col-span-1 md:col-span-2 lg:col-span-3">
                     <div className="card-header">
-                        <p className="card-title">Distribución por Tipo</p>
+                        <div className="flex items-center justify-between">
+                            <p className="card-title">Distribución de Contaminantes</p>
+                            <span className="text-xs text-slate-500">
+                                {/* Muestra el período de los datos */}
+                                {measurements.length > 0
+                                    ? `Datos: ${new Date(measurements[measurements.length - 1].fecha_muestra).toLocaleDateString()} - ${new Date(measurements[0].fecha_muestra).toLocaleDateString()}`
+                                    : "Sin datos"}
+                            </span>
+                        </div>
                     </div>
                     <div className="card-body h-[300px] overflow-auto p-0">
-                        <ResponsiveContainer
-                            width="100%"
-                            height="100%"
-                        >
-                            <PieChart>
-                                <Pie
-                                    data={prepareParametersData()}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={renderCustomizedLabel}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {prepareParametersData().map((entry, index) => (
-                                        <Cell
-                                            key={`cell-${index}`}
-                                            fill={COLORS[index % COLORS.length]}
-                                        />
-                                    ))}
-                                </Pie>
-                                <Tooltip formatter={(value, name, props) => [`${value}%`, props.payload.name]} />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        {prepareParametersData().length > 0 ? (
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
+                            >
+                                <PieChart>
+                                    <defs>
+                                        {COLORS.map((color, index) => (
+                                            <linearGradient
+                                                key={`gradient-${index}`}
+                                                id={`colorGradient-${index}`}
+                                                x1="0"
+                                                y1="0"
+                                                x2="0"
+                                                y2="1"
+                                            >
+                                                <stop
+                                                    offset="0%"
+                                                    stopColor={color}
+                                                    stopOpacity={1}
+                                                />
+                                                <stop
+                                                    offset="100%"
+                                                    stopColor={lightenColor(color)}
+                                                    stopOpacity={0.8}
+                                                />
+                                            </linearGradient>
+                                        ))}
+                                    </defs>
+                                    <Pie
+                                        data={prepareParametersData()}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                                        outerRadius={isMobile ? 70 : 90}
+                                        innerRadius={isMobile ? 40 : 60}
+                                        fill="#8884d8"
+                                        paddingAngle={2}
+                                        dataKey="value"
+                                    >
+                                        {prepareParametersData().map((entry, index) => (
+                                            <Cell
+                                                key={`cell-${entry.name}`}
+                                                fill={`url(#colorGradient-${index % COLORS.length})`}
+                                                stroke={theme === "light" ? "#fff" : "#1e293b"}
+                                                strokeWidth={2}
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        formatter={(value, name, props) => {
+                                            const item = props.payload;
+                                            return [
+                                                <div className="corporate-tooltip">
+                                                    <div
+                                                        className="tooltip-header"
+                                                        style={{ fontWeight: "bold", marginBottom: "5px" }}
+                                                    >
+                                                        {item.name}
+                                                    </div>
+                                                    <div>
+                                                        <strong>Porcentaje:</strong> {item.percentage}%
+                                                    </div>
+                                                    <div>
+                                                        <strong>Valor promedio:</strong> {item.avg} {item.unit}
+                                                    </div>
+                                                    <div>
+                                                        <strong>Máximo:</strong> {item.max} {item.unit}
+                                                    </div>
+                                                </div>,
+                                                null,
+                                            ];
+                                        }}
+                                        contentStyle={{
+                                            backgroundColor: theme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(30, 41, 59, 0.95)",
+                                            borderRadius: "8px",
+                                            border: theme === "light" ? "1px solid #e2e8f0" : "1px solid #334155",
+                                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                        }}
+                                    />
+                                    <Legend
+                                        layout="horizontal"
+                                        verticalAlign="bottom"
+                                        align="center"
+                                        formatter={(value, entry) => (
+                                            <span style={{ color: theme === "light" ? "#334155" : "#94a3b8" }}>
+                                                {value} ({prepareParametersData().find((i) => i.name === value)?.percentage}%)
+                                            </span>
+                                        )}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex h-full items-center justify-center">
+                                <p className="text-gray-500">No hay datos de distribución disponibles para este cliente</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="border-t p-3 text-sm text-slate-500">
+                        <p>Este gráfico muestra la distribución porcentual de los distintos contaminantes medidos.</p>
                     </div>
                 </div>
             </div>
 
-            <div className="card">
-                <div className="card-header">
-                    <p className="card-title">Mediciones Máximas por Parámetro</p>
+            <div className="card overflow-hidden">
+                <div className="card-header flex items-center justify-between">
+                    <p className="card-title flex items-center">
+                        <BarChart2 className="mr-2 h-5 w-5 text-blue-500" />
+                        Mediciones Máximas por Parámetro
+                    </p>
+                    <div className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                        {getMaxMeasurementsByParameter().length} parámetros
+                    </div>
                 </div>
-                <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
+                <div className="overflow-hidden">
                     {getMaxMeasurementsByParameter().length > 0 ? (
-                        <div className="space-y-4">
-                            {getMaxMeasurementsByParameter().map((item, index) => (
-                                <div
-                                    key={index}
-                                    className="border-b pb-3 last:border-0 last:pb-0"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <p className="font-medium text-slate-700 dark:text-slate-300">{item.parametro}</p>
-                                        <span
-                                            className={`rounded-md px-2 py-1 text-xs font-medium ${
-                                                parseNumberWithLocale(item.concentracion) / item.limite > 0.8
-                                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                            }`}
-                                        >
-                                            {Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100)}% del límite
-                                        </span>
+                        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {getMaxMeasurementsByParameter().map((item, index) => {
+                                const percent = Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100);
+                                const isHigh = percent > 80;
+
+                                return (
+                                    <div
+                                        key={index}
+                                        className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <div
+                                                    className={`mr-3 rounded-md p-2 ${
+                                                        isHigh
+                                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                    }`}
+                                                >
+                                                    {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-slate-900 dark:text-slate-100">{item.parametro}</p>
+                                                    <p className="text-sm text-slate-500">{new Date(item.fecha).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-lg font-bold">
+                                                    {parseNumberWithLocale(item.concentracion).toFixed(2)}
+                                                    <span className="ml-1 text-xs font-normal text-slate-500">{item.unidad}</span>
+                                                </p>
+                                                <div className="mt-1 flex items-center gap-2">
+                                                    <div className="h-1.5 w-16 rounded-full bg-slate-200 dark:bg-slate-700">
+                                                        <div
+                                                            className={`h-full rounded-full ${isHigh ? "bg-amber-500" : "bg-green-500"}`}
+                                                            style={{ width: `${Math.min(100, percent)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span
+                                                        className={`text-xs font-medium ${
+                                                            isHigh ? "text-amber-800 dark:text-amber-400" : "text-green-800 dark:text-green-400"
+                                                        }`}
+                                                    >
+                                                        {percent}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="mt-1 flex items-center justify-between">
-                                        <p className="text-xl font-bold">
-                                            {parseNumberWithLocale(item.concentracion).toFixed(2)} {item.unidad}
-                                        </p>
-                                        <p className="text-sm text-slate-500">{new Date(item.fecha).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
-                        <p className="text-center text-slate-500">No hay datos de mediciones disponibles</p>
+                        <div className="flex h-40 items-center justify-center">
+                            <p className="text-slate-500">No hay datos de mediciones disponibles</p>
+                        </div>
                     )}
                 </div>
             </div>
@@ -780,73 +1123,81 @@ const DashboardPage = () => {
                     <p className="card-title">Evolución Histórica por Parámetro</p>
                 </div>
                 <div className="card-body p-0">
-                    <div
-                        className="w-full"
-                        style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
-                    >
-                        <ResponsiveContainer
-                            width="100%"
-                            height="100%"
+                    {prepareHistoricalData().length > 0 ? (
+                        <div
+                            className="w-full"
+                            style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
                         >
-                            <LineChart
-                                data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
-                                margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
+                            <ResponsiveContainer
+                                width="100%"
+                                height="100%"
                             >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="fecha"
-                                    tick={{ fontSize: isMobile ? 10 : 12 }}
-                                    angle={isMobile ? -45 : 0}
-                                    textAnchor={isMobile ? "end" : "middle"}
-                                    height={isMobile ? 60 : 30}
-                                />
-                                <YAxis
-                                    tick={{ fontSize: isMobile ? 10 : 12 }}
-                                    width={isMobile ? 30 : 40}
-                                    tickCount={isMobile ? 3 : 5}
-                                />
-                                <Tooltip
-                                    cursor={{ strokeDasharray: "3 3" }}
-                                    wrapperStyle={{
-                                        backgroundColor: "rgba(255, 255, 255, 0.95)",
-                                        padding: isMobile ? "15px" : "10px",
-                                        border: "1px solid #ccc",
-                                        borderRadius: "5px",
-                                        fontSize: isMobile ? "14px" : "12px",
-                                    }}
-                                />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="SO2"
-                                    stroke="#3b82f6"
-                                    strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="PM10"
-                                    stroke="#ef4444"
-                                    strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <ReferenceLine
-                                    y={50}
-                                    stroke="#3b82f6"
-                                    strokeDasharray="3 3"
-                                    label={{ position: "top", value: "Límite SO2", fill: theme === "light" ? "#3b82f6" : "#60a5fa" }}
-                                />
-                                <ReferenceLine
-                                    y={100}
-                                    stroke="#ef4444"
-                                    strokeDasharray="3 3"
-                                    label={{ position: "top", value: "Límite PM10", fill: theme === "light" ? "#ef4444" : "#f87171" }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+                                <LineChart
+                                    data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
+                                    margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="fecha"
+                                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                                        angle={isMobile ? -45 : 0}
+                                        textAnchor={isMobile ? "end" : "middle"}
+                                        height={isMobile ? 60 : 30}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                                        width={isMobile ? 30 : 40}
+                                        tickCount={isMobile ? 3 : 5}
+                                    />
+                                    <Tooltip
+                                        cursor={{ strokeDasharray: "3 3" }}
+                                        wrapperStyle={{
+                                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                            padding: isMobile ? "15px" : "10px",
+                                            border: "1px solid #ccc",
+                                            borderRadius: "5px",
+                                            fontSize: isMobile ? "14px" : "12px",
+                                        }}
+                                    />
+                                    <Legend />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="SO2"
+                                        stroke="#3b82f6"
+                                        strokeWidth={2}
+                                        dot={{ r: 3 }}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="PM10"
+                                        stroke="#ef4444"
+                                        strokeWidth={2}
+                                        dot={{ r: 3 }}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                    {parametersLimits &&
+                                        Object.entries(parametersLimits).map(([param, { limit, unit }]) => (
+                                            <ReferenceLine
+                                                key={`limit-${param}`}
+                                                y={limit}
+                                                stroke={COLORS_MAP[param] || "#ef4444"}
+                                                strokeDasharray="3 3"
+                                                label={{
+                                                    position: "top",
+                                                    value: `Límite ${param}`,
+                                                    fill: theme === "light" ? COLORS_MAP[param] : lightenColor(COLORS_MAP[param] || "#ef4444"),
+                                                }}
+                                            />
+                                        ))}
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="flex h-[200px] items-center justify-center">
+                            <p className="text-gray-500">No hay suficientes datos históricos para este cliente</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
