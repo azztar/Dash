@@ -8,6 +8,7 @@ import { Footer } from "@/layouts/footer";
 import { PencilLine, Trash, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResponsive } from "@/hooks/useResponsive";
 
 const AdminPage = () => {
     const { theme } = useTheme();

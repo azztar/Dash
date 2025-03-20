@@ -8,6 +8,7 @@ import es from "date-fns/locale/es";
 import { airQualityService } from "@/services/airQualityService";
 import { useTheme } from "@/hooks/use-theme";
 import { PageContainer } from "@/components/PageContainer";
+import { useResponsive } from "@/hooks/useResponsive"; // Añadir esta línea
 
 // Registrar el locale español
 registerLocale("es", es);
@@ -16,6 +17,7 @@ const DetalleAire = () => {
     const { estacionId } = useParams();
     const navigate = useNavigate();
     const { theme } = useTheme();
+    const { isMobile } = useResponsive(); // Añadir esta línea
     const [dateRange, setDateRange] = useState([null, null]);
     const [startDate, endDate] = dateRange;
     const [mediciones, setMediciones] = useState([]);
@@ -113,31 +115,63 @@ const DetalleAire = () => {
 
                                 <Card>
                                     <Title className="mb-4">Gráfico de Tendencia</Title>
-                                    <ResponsiveContainer
-                                        width="100%"
-                                        height={400}
+                                    <div
+                                        className="w-full"
+                                        style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
                                     >
-                                        <AreaChart data={mediciones}>
-                                            <XAxis
-                                                dataKey="fecha_hora_inicial"
-                                                tickFormatter={(date) => new Date(date).toLocaleDateString("es-ES")}
-                                                stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"}
-                                            />
-                                            <YAxis stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"} />
-                                            <Tooltip />
-                                            <ReferenceLine
-                                                y={75}
-                                                stroke="#EF4444"
-                                                label="Límite PM10"
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="concentracion_pm10"
-                                                stroke="#3B82F6"
-                                                fill="#93C5FD"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
+                                        <ResponsiveContainer
+                                            width="100%"
+                                            height="100%"
+                                        >
+                                            <AreaChart
+                                                data={isMobile && mediciones.length > 12 ? mediciones.filter((_, i) => i % 3 === 0) : mediciones}
+                                                margin={{ top: 20, right: 15, left: 10, bottom: isMobile ? 50 : 30 }}
+                                            >
+                                                <XAxis
+                                                    dataKey="fecha_hora_inicial"
+                                                    tickFormatter={(date) => new Date(date).toLocaleDateString("es-ES")}
+                                                    stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"}
+                                                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                                                    angle={isMobile ? -45 : 0}
+                                                    textAnchor={isMobile ? "end" : "middle"}
+                                                    height={isMobile ? 50 : 30}
+                                                />
+                                                <YAxis
+                                                    stroke={theme === "dark" ? "#9CA3AF" : "#6B7280"}
+                                                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                                                    width={isMobile ? 35 : 45}
+                                                    tickCount={isMobile ? 4 : 6}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ strokeDasharray: "3 3" }}
+                                                    wrapperStyle={{
+                                                        backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                                        padding: isMobile ? "15px" : "10px",
+                                                        border: "1px solid #ccc",
+                                                        borderRadius: "5px",
+                                                        fontSize: isMobile ? "14px" : "12px",
+                                                    }}
+                                                />
+                                                <ReferenceLine
+                                                    y={75}
+                                                    stroke="#EF4444"
+                                                    label={{
+                                                        position: "top",
+                                                        value: "Límite PM10",
+                                                        fill: theme === "dark" ? "#FCA5A5" : "#EF4444",
+                                                        fontSize: isMobile ? 10 : 12,
+                                                    }}
+                                                />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="concentracion_pm10"
+                                                    stroke="#3B82F6"
+                                                    fill="#93C5FD"
+                                                    isAnimationActive={false} // Añadir esta línea
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </Card>
                             </>
                         )}

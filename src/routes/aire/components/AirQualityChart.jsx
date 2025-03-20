@@ -1,8 +1,11 @@
 import React from "react";
 import { Card } from "@tremor/react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { useResponsive } from "@/hooks/useResponsive";
 
 export const AirQualityChart = ({ data, parameterName }) => {
+    const { isMobile } = useResponsive();
+
     if (!data?.data || !Array.isArray(data.data)) {
         return null;
     }
@@ -87,25 +90,38 @@ export const AirQualityChart = ({ data, parameterName }) => {
                     </div>
                 </div>
             </div>
-            <div className="h-[400px] w-full">
+            <div
+                className="w-full"
+                style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
+            >
                 <ResponsiveContainer>
                     <AreaChart
-                        data={chartDataConEvaluacion}
-                        margin={{ top: 10, right: 30, left: 20, bottom: 30 }}
+                        data={
+                            isMobile && chartDataConEvaluacion.length > 15
+                                ? chartDataConEvaluacion.filter((_, i) => i % 3 === 0)
+                                : chartDataConEvaluacion
+                        }
+                        margin={{ top: 10, right: 30, left: 20, bottom: isMobile ? 40 : 30 }}
                     >
                         <XAxis
                             dataKey="muestra"
+                            tick={{ fontSize: isMobile ? 10 : 12 }}
+                            angle={isMobile ? -45 : 0}
+                            textAnchor={isMobile ? "end" : "middle"}
+                            height={isMobile ? 60 : 30}
+                            ticks={chartData.map((d) => d.muestra)} // Mostrar todas las muestras
                             label={{
                                 value: "Número de Muestra",
                                 position: "bottom",
                                 offset: 0,
                             }}
-                            ticks={chartData.map((d) => d.muestra)} // Mostrar todas las muestras
                         />
                         <YAxis
                             domain={[0, valorLimite * 1.2]} // Escala hasta 120% del límite normativo
-                            tickCount={10}
+                            tickCount={isMobile ? 5 : 10}
                             allowDecimals={false}
+                            tick={{ fontSize: isMobile ? 10 : 12 }}
+                            width={isMobile ? 30 : 40}
                             label={{
                                 value: "Concentración (µg/m³)",
                                 angle: -90,
@@ -131,6 +147,13 @@ export const AirQualityChart = ({ data, parameterName }) => {
                                         </div>
                                     </div>
                                 );
+                            }}
+                            wrapperStyle={{
+                                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                padding: isMobile ? "15px" : "10px",
+                                border: "1px solid #ccc",
+                                borderRadius: "5px",
+                                fontSize: isMobile ? "14px" : "12px",
                             }}
                         />
                         {/* Línea de límite normativo */}

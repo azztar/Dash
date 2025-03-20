@@ -23,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useResponsive } from "@/hooks/useResponsive";
 
 import {
     FileText,
@@ -46,6 +47,7 @@ const DashboardPage = () => {
     const navigate = useNavigate();
     const { token, user } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL;
+    const { isMobile } = useResponsive();
 
     // Estados para almacenar datos
     const [isLoading, setIsLoading] = useState(true);
@@ -227,10 +229,11 @@ const DashboardPage = () => {
         }
 
         return measurements
-            .map((item) => ({
+            .map((item, index) => ({
                 name: new Date(item.fecha_muestra).toLocaleDateString(),
                 Valor: item.concentracion,
                 Límite: item.valor_limite,
+                id: `measurement-${item.id_medicion || index}`, // Añadir ID único
             }))
             .slice(0, 10); // Mostrar solo los últimos 10
     };
@@ -639,8 +642,8 @@ const DashboardPage = () => {
                                 height={300}
                             >
                                 <BarChart
-                                    data={prepareChartData()}
-                                    margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
+                                    data={isMobile ? prepareChartData().filter((_, i) => i % 2 === 0) : prepareChartData()}
+                                    margin={{ top: 10, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
                                 >
                                     <CartesianGrid
                                         strokeDasharray="3 3"
@@ -651,34 +654,42 @@ const DashboardPage = () => {
                                         strokeWidth={0}
                                         stroke={theme === "light" ? "#475569" : "#94a3b8"}
                                         tickMargin={6}
-                                        angle={-45}
-                                        textAnchor="end"
+                                        angle={isMobile ? -45 : 0}
+                                        height={isMobile ? 60 : 30}
+                                        textAnchor={isMobile ? "end" : "middle"}
+                                        tick={{ fontSize: isMobile ? 10 : 12 }}
                                     />
                                     <YAxis
                                         strokeWidth={0}
                                         stroke={theme === "light" ? "#475569" : "#94a3b8"}
                                         tickMargin={6}
+                                        width={isMobile ? 35 : 45}
+                                        tickCount={isMobile ? 4 : 6}
                                     />
                                     <Tooltip
-                                        content={({ active, payload, label }) => {
-                                            if (active && payload && payload.length) {
-                                                return (
-                                                    <div className="rounded-lg border border-gray-200 bg-white p-2 shadow dark:border-gray-700 dark:bg-slate-800 dark:text-white">
-                                                        {/* contenido... */}
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
+                                        cursor={{ strokeDasharray: "3 3" }}
+                                        wrapperStyle={{
+                                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                            padding: isMobile ? "15px" : "10px",
+                                            border: "1px solid #ccc",
+                                            borderRadius: "5px",
+                                            fontSize: isMobile ? "14px" : "12px",
                                         }}
                                     />
                                     <Legend />
                                     <Bar
                                         dataKey="Valor"
+                                        name="Concentración"
                                         fill="#3b82f6"
+                                        // Añadir esto para resolver el problema de claves duplicadas
+                                        isAnimationActive={false}
                                     />
                                     <Bar
                                         dataKey="Límite"
+                                        name="Límite Permitido"
                                         fill="#ef4444"
+                                        // Añadir esto para resolver el problema de claves duplicadas
+                                        isAnimationActive={false}
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -769,66 +780,73 @@ const DashboardPage = () => {
                     <p className="card-title">Evolución Histórica por Parámetro</p>
                 </div>
                 <div className="card-body p-0">
-                    <ResponsiveContainer
-                        width="100%"
-                        height={300}
+                    <div
+                        className="w-full"
+                        style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
                     >
-                        <LineChart
-                            data={prepareHistoricalData()}
-                            margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
+                        <ResponsiveContainer
+                            width="100%"
+                            height="100%"
                         >
-                            <CartesianGrid
-                                strokeDasharray="3 3"
-                                stroke={theme === "light" ? "#e2e8f0" : "#334155"}
-                            />
-                            <XAxis
-                                dataKey="fecha"
-                                strokeWidth={0}
-                                angle={-45}
-                                textAnchor="end"
-                                tickMargin={8}
-                                stroke={theme === "light" ? "#475569" : "#94a3b8"}
-                            />
-                            <YAxis
-                                strokeWidth={0}
-                                stroke={theme === "light" ? "#475569" : "#94a3b8"}
-                                tickMargin={6}
-                            />
-                            <Tooltip
-                                formatter={(value) => [`${value} μg/m³`, "Concentración"]}
-                                labelFormatter={(label) => `Fecha: ${label}`}
-                            />
-                            <Legend />
-                            <Line
-                                type="monotone"
-                                dataKey="SO2"
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 6 }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="PM10"
-                                stroke="#ef4444"
-                                strokeWidth={2}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 6 }}
-                            />
-                            <ReferenceLine
-                                y={50}
-                                stroke="#3b82f6"
-                                strokeDasharray="3 3"
-                                label={{ position: "top", value: "Límite SO2", fill: theme === "light" ? "#3b82f6" : "#60a5fa" }}
-                            />
-                            <ReferenceLine
-                                y={100}
-                                stroke="#ef4444"
-                                strokeDasharray="3 3"
-                                label={{ position: "top", value: "Límite PM10", fill: theme === "light" ? "#ef4444" : "#f87171" }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                            <LineChart
+                                data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
+                                margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="fecha"
+                                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                                    angle={isMobile ? -45 : 0}
+                                    textAnchor={isMobile ? "end" : "middle"}
+                                    height={isMobile ? 60 : 30}
+                                />
+                                <YAxis
+                                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                                    width={isMobile ? 30 : 40}
+                                    tickCount={isMobile ? 3 : 5}
+                                />
+                                <Tooltip
+                                    cursor={{ strokeDasharray: "3 3" }}
+                                    wrapperStyle={{
+                                        backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                        padding: isMobile ? "15px" : "10px",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "5px",
+                                        fontSize: isMobile ? "14px" : "12px",
+                                    }}
+                                />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="SO2"
+                                    stroke="#3b82f6"
+                                    strokeWidth={2}
+                                    dot={{ r: 3 }}
+                                    activeDot={{ r: 6 }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="PM10"
+                                    stroke="#ef4444"
+                                    strokeWidth={2}
+                                    dot={{ r: 3 }}
+                                    activeDot={{ r: 6 }}
+                                />
+                                <ReferenceLine
+                                    y={50}
+                                    stroke="#3b82f6"
+                                    strokeDasharray="3 3"
+                                    label={{ position: "top", value: "Límite SO2", fill: theme === "light" ? "#3b82f6" : "#60a5fa" }}
+                                />
+                                <ReferenceLine
+                                    y={100}
+                                    stroke="#ef4444"
+                                    strokeDasharray="3 3"
+                                    label={{ position: "top", value: "Límite PM10", fill: theme === "light" ? "#ef4444" : "#f87171" }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
 
