@@ -579,31 +579,10 @@ router.get("/recent/:userId", authMiddleware, async (req, res) => {
             };
         });
 
-        // 4. Obtener límites de normas para cada parámetro
-        const normaLimitsMap = {};
-        const parametersArray = Object.keys(paramGroups);
-
-        if (parametersArray.length > 0) {
-            const [normas] = await db.query(
-                `SELECT parametro, valor_limite, unidad  
-                 FROM normas
-                 WHERE id_usuario = ? AND parametro IN (?)`,
-                [userId, parametersArray],
-            );
-
-            normas.forEach((norma) => {
-                normaLimitsMap[norma.parametro] = {
-                    limit: parseFloat(norma.valor_limite),
-                    unit: norma.unidad,
-                };
-            });
-        }
-
         res.json({
             success: true,
             data: measurements,
             groupedByParameter,
-            parametersLimits: normaLimitsMap, // ¡Nueva información!
             total: measurements.length,
         });
     } catch (error) {

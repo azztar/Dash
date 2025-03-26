@@ -262,6 +262,61 @@ export const useAirQuality = () => {
         }
     };
 
+    const fetchMeasurements = async () => {
+        try {
+            setLoading((prev) => ({ ...prev, measurements: true }));
+            setError(null);
+
+            const token = localStorage.getItem("token");
+
+            const response = await axios.get(`${API_URL}/api/measurements`, {
+                params: {
+                    stationId: selectedStation?.id_estacion,
+                    parameterId: selectedNorm,
+                    date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : null,
+                },
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            console.log("✅ Datos recibidos:", response.data);
+            setData(response.data);
+        } catch (error) {
+            console.error("❌ Error:", error);
+            setError(error.message || "Error al obtener mediciones");
+        } finally {
+            setLoading((prev) => ({ ...prev, measurements: false }));
+        }
+    };
+
+    const fetchAvailableDates = async () => {
+        try {
+            setLoading((prev) => ({ ...prev, dates: true }));
+            setError(null);
+
+            const token = localStorage.getItem("token");
+
+            const response = await axios.get(`${API_URL}/api/measurements/available-dates`, {
+                params: {
+                    stationId: selectedStation?.id_estacion,
+                    parameterId: selectedNorm,
+                },
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            console.log("✅ Fechas disponibles:", response.data);
+
+            if (response.data && response.data.dates) {
+                const parsedDates = response.data.dates.map((d) => new Date(d));
+                setAvailableDates(parsedDates);
+            }
+        } catch (error) {
+            console.error("❌ Error:", error);
+            setError(error.message || "Error al obtener fechas disponibles");
+        } finally {
+            setLoading((prev) => ({ ...prev, dates: false }));
+        }
+    };
+
     return {
         stations,
         selectedStation,

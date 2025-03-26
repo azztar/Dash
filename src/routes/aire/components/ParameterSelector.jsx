@@ -75,20 +75,21 @@ export const ParameterSelector = ({ selectedStation, selectedNorm, onSelect }) =
         );
     }
 
+    // Añadir soporte para tema oscuro
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {parametrosDisponibles.map((parametro) => (
-                <Card
-                    key={parametro}
-                    onClick={() => onSelect(parametro)}
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedNorm === parametro ? "border-2 border-blue-500 bg-blue-50" : "hover:border-gray-300"
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {parametrosDisponibles.map((param) => (
+                <div
+                    key={param}
+                    onClick={() => onSelect(param)}
+                    className={`cursor-pointer rounded-lg border p-4 transition-all hover:shadow-md ${
+                        selectedNorm === param
+                            ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30"
+                            : "border-slate-200 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
                     }`}
                 >
-                    <div className="space-y-2 p-4">
-                        <h3 className="text-lg font-semibold">{parametro}</h3>
-                    </div>
-                </Card>
+                    <h3 className="font-medium text-slate-900 dark:text-slate-100">{param}</h3>
+                </div>
             ))}
         </div>
     );

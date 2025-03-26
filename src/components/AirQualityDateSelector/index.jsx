@@ -51,7 +51,9 @@ export const AirQualityDateSelector = ({ selectedDate, onSelect, availableDates 
                         key={date}
                         onClick={() => onSelect(date)}
                         className={`rounded-lg p-2 text-sm transition-colors ${
-                            selectedDate === date ? "bg-blue-500 text-white hover:bg-blue-600" : "bg-gray-100 hover:bg-gray-200"
+                            selectedDate === date
+                                ? "bg-blue-500 text-white hover:bg-blue-600"
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                         }`}
                     >
                         {format(new Date(date), "d 'de' MMMM yyyy", { locale: es })}

@@ -51,10 +51,10 @@ const getAvailableDates = async (req, res) => {
 };
 
 const getMeasurements = async (req, res) => {
-    const { estacionId, parametro, fecha } = req.params;
-    const userId = req.user.userId;
-
     try {
+        const { stationId, parameterId, date } = req.query;
+        const userId = req.user.userId;
+
         const [measurements] = await db.query(
             `SELECT 
                 ma.*,
@@ -70,12 +70,15 @@ const getMeasurements = async (req, res) => {
              AND n.parametro = ?
              AND DATE(ma.fecha_inicio_muestra) = ?
              AND e.id_usuario = ?`,
-            [estacionId, parametro, fecha, userId],
+            [stationId, parameterId, date, userId],
         );
 
         res.json({
             success: true,
             data: measurements,
+            metadata: {
+                // Additional metadata can be added here
+            },
         });
     } catch (error) {
         console.error("Error detallado:", error);

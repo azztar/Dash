@@ -1,160 +1,73 @@
-import React, { memo } from "react";
+import React from "react";
 import { Card } from "@tremor/react";
 import { LoadingState } from "./LoadingState";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
-export const MeasurementsTable = memo(
-    ({ data, stationName, parameterName, loading }) => {
-        // Logging mejorado
-        console.log("🔄 MeasurementsTable:", {
-            loading,
-            hayDatos: Boolean(data?.data),
-            totalMediciones: data?.data?.length || 0,
-            estacion: stationName,
-            parametro: parameterName,
-        });
+// Asegurar que la tabla respete el tema oscuro
+export const MeasurementsTable = ({ data, stationName, parameterName }) => {
+    // Debug de datos
+    console.log("MeasurementsTable - Datos recibidos:", {
+        tieneData: !!data,
+        contienePropiedadData: data && "data" in data,
+        longitudDatos: data?.data?.length || 0,
+        primerElemento: data?.data?.[0] || null,
+    });
 
-        if (loading) {
-            return <LoadingState />;
-        }
-
-        if (!data?.data?.length) {
-            return (
-                <Card className="p-4">
-                    <p className="text-center text-gray-500">
-                        No hay datos disponibles para {parameterName} en {stationName}
-                    </p>
-                </Card>
-            );
-        }
-
-        const measurements = data.data;
-        const declaracion = data.metadata?.declaracionConformidad;
-
-        // Función auxiliar para formatear la fecha
-        const formatearFecha = (fecha) => {
-            try {
-                if (!fecha) return "Fecha no disponible";
-                // Asumiendo que fecha viene en formato ISO: "2025-02-21"
-                const fechaObj = parseISO(fecha);
-                return format(fechaObj, "dd 'de' MMMM yyyy", { locale: es });
-            } catch (error) {
-                console.error("Error al formatear fecha:", fecha, error);
-                return fecha || "Fecha no disponible";
-            }
-        };
-
+    // Validación de datos
+    if (!data?.data || data.data.length === 0) {
         return (
-            <div className="space-y-6">
-                <Card className="overflow-hidden">
-                    <h3 className="border-b bg-gray-50 p-4 text-lg font-semibold">
-                        Mediciones de {parameterName} - {stationName}
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Muestra</th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Fecha</th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Hora</th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">T. Muestreo (s)</th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                                        Concentración (µg/m³)
-                                    </th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Incertidumbre</th>
-                                    <th className="bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Factor Cobertura</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white">
-                                {measurements
-                                    .sort((a, b) => {
-                                        // Extraer los números después del punto
-                                        const [, aNum] = a.muestra.split(".");
-                                        const [, bNum] = b.muestra.split(".");
-                                        // Ordenar de menor a mayor
-                                        return Number(aNum) - Number(bNum);
-                                    })
-                                    .map((m) => (
-                                        <tr
-                                            key={m.id_medicion_aire}
-                                            className="hover:bg-gray-50"
-                                        >
-                                            <td className="whitespace-nowrap px-6 py-4">{m.muestra}</td>
-                                            <td className="whitespace-nowrap px-6 py-4">{m.fecha_muestra}</td>
-                                            <td className="whitespace-nowrap px-6 py-4">{m.hora_muestra.toLowerCase()}</td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-right">
-                                                {typeof m.tiempo_muestreo === "number"
-                                                    ? m.tiempo_muestreo.toLocaleString("es-CO", {
-                                                          minimumFractionDigits: 1,
-                                                          maximumFractionDigits: 1,
-                                                      })
-                                                    : m.tiempo_muestreo}
-                                            </td>
-                                            <td
-                                                className={`whitespace-nowrap px-6 py-4 text-right font-medium ${
-                                                    parseFloat(m.concentracion.replace(",", ".")) > data.metadata?.norma?.valor_limite
-                                                        ? "text-red-600"
-                                                        : "text-green-600"
-                                                }`}
-                                            >
-                                                {m.concentracion}
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-right">{m.u}</td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-right">{m.u_factor_cobertura}</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-
-                {/* Declaración de Conformidad */}
-                {declaracion && (
-                    <Card className="overflow-hidden">
-                        <h3 className="border-b bg-gray-50 p-4 text-lg font-semibold">Declaración de Conformidad</h3>
-                        <div className="p-4">
-                            <dl className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <dt className="text-sm font-medium text-gray-500">Norma</dt>
-                                    <dd className="mt-1 text-lg text-gray-900">{declaracion.norma_ugm3} µg/m³</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-sm font-medium text-gray-500">Media</dt>
-                                    <dd className="mt-1 text-lg text-gray-900">{declaracion.media_concentracion} µg/m³</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-sm font-medium text-gray-500">Probabilidad</dt>
-                                    <dd className="mt-1 text-lg text-gray-900">{declaracion.prob_conformidad}%</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-sm font-medium text-gray-500">Resultado</dt>
-                                    <dd
-                                        className={`mt-1 text-lg font-semibold ${
-                                            declaracion.regla_decision === "CUMPLE" ? "text-green-600" : "text-red-600"
-                                        }`}
-                                    >
-                                        {declaracion.regla_decision}
-                                    </dd>
-                                </div>
-                            </dl>
-                        </div>
-                    </Card>
-                )}
+            <div className="flex h-40 items-center justify-center">
+                <p className="text-slate-500 dark:text-slate-400">No hay mediciones disponibles</p>
             </div>
         );
-    },
-    // Optimización de la comparación para memo
-    (prevProps, nextProps) => {
-        const dataChanged =
-            prevProps.data?.data?.length === nextProps.data?.data?.length &&
-            prevProps.data?.metadata?.declaracionConformidad?.id_declaracion === nextProps.data?.metadata?.declaracionConformidad?.id_declaracion;
+    }
 
-        const propsChanged =
-            prevProps.stationName === nextProps.stationName &&
-            prevProps.parameterName === nextProps.parameterName &&
-            prevProps.loading === nextProps.loading;
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full">
+                <thead>
+                    <tr className="bg-slate-50 text-left text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+                        <th className="whitespace-nowrap p-3 font-medium">Muestra</th>
+                        <th className="whitespace-nowrap p-3 font-medium">Fecha</th>
+                        <th className="whitespace-nowrap p-3 font-medium">Hora</th>
+                        <th className="whitespace-nowrap p-3 font-medium">Concentración</th>
+                        <th className="whitespace-nowrap p-3 font-medium">Unidad</th>
+                        <th className="whitespace-nowrap p-3 font-medium">Estado</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {data.data.map((item, index) => {
+                        // SOLUCIÓN: Usar directamente fecha_muestra sin intentar manipularla
+                        // La estructura del backend ya devuelve fecha_muestra en formato DD/MM/YYYY
+                        const isAboveLimit = parseFloat(item.concentracion.replace(",", ".")) > parseFloat(item.valor_limite || 0);
 
-        return dataChanged && propsChanged;
-    },
-);
+                        return (
+                            <tr
+                                key={index}
+                                className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/70"
+                            >
+                                <td className="p-3 text-slate-900 dark:text-slate-200">{item.muestra}</td>
+                                <td className="p-3 text-slate-900 dark:text-slate-200">{item.fecha_muestra}</td>
+                                <td className="p-3 text-slate-900 dark:text-slate-200">{item.hora_muestra}</td>
+                                <td className="p-3 text-slate-900 dark:text-slate-200">{item.concentracion}</td>
+                                <td className="p-3 text-slate-900 dark:text-slate-200">{item.unidad || "µg/m³"}</td>
+                                <td className="p-3">
+                                    <span
+                                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                            isAboveLimit
+                                                ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                : "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                        }`}
+                                    >
+                                        {isAboveLimit ? "Excede límite" : "Conforme"}
+                                    </span>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
