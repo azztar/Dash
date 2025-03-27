@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const { authMiddleware } = require("../middleware/authMiddleware");
 const pool = require("../config/database");
+const userController = require("../controllers/userController");
 
 // GET - Obtener todos los usuarios
 router.get("/", authMiddleware, async (req, res) => {
@@ -73,5 +74,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
+// Ruta para obtener la ubicación del usuario
+router.get("/location", authMiddleware, userController.getUserLocation);
 
 module.exports = router;

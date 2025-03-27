@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useResponsive } from "@/hooks/useResponsive";
+import { WeatherCard } from "@/components/Weather/WeatherCard";
 
 import {
     FileText,
@@ -41,6 +42,9 @@ import {
     PieChart as PieChartIcon,
     File,
 } from "lucide-react";
+
+// Importar el contexto
+import { useNotifications } from "@/contexts/NotificationContext";
 
 // Mapa de colores para los diferentes parámetros
 const COLORS_MAP = {
@@ -74,6 +78,7 @@ const DashboardPage = () => {
     const { token, user } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL;
     const { isMobile } = useResponsive();
+    const { generateNotifications } = useNotifications();
 
     // Estados para almacenar datos
     const [isLoading, setIsLoading] = useState(true);
@@ -104,7 +109,6 @@ const DashboardPage = () => {
         }
     });
 
-    const [notifications, setNotifications] = useState([]);
     const [measurementsByType, setMeasurementsByType] = useState([]);
     const [parametersLimits, setParametersLimits] = useState({});
 
@@ -204,7 +208,7 @@ const DashboardPage = () => {
                 }
 
                 // Generar notificaciones
-                generateNotifications(filesResponse.data.files || []);
+                generateNotifications(filesResponse.data.files || [], measurements);
             } catch (error) {
                 console.error("Error al cargar datos del dashboard:", error);
                 toast.error("Error al cargar datos del dashboard");
@@ -218,7 +222,7 @@ const DashboardPage = () => {
         };
 
         fetchData();
-    }, [token, user, API_URL]);
+    }, [token, user, API_URL, generateNotifications]);
 
     // Añade un log para verificar qué datos están llegando:
     useEffect(() => {
@@ -230,62 +234,6 @@ const DashboardPage = () => {
             setUserDisplay(user);
         }
     }, [user]);
-
-    // Generar notificaciones en base a datos
-    const generateNotifications = (files) => {
-        const notifications = [];
-
-        // Notificación de archivos recientes (últimos 7 días)
-        const recentFiles = files.filter((file) => {
-            const fileDate = new Date(file.fecha_carga);
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            return fileDate >= sevenDaysAgo;
-        });
-
-        if (recentFiles.length > 0) {
-            notifications.push({
-                id: "recent-files",
-                title: `${recentFiles.length} archivo(s) nuevo(s)`,
-                description: `Tienes ${recentFiles.length} archivo(s) subido(s) en la última semana`,
-                icon: <FileText className="h-5 w-5 text-blue-500" />,
-                action: () => navigate("/archivos"),
-                type: "info",
-            });
-        }
-
-        // Notificación sobre mediciones cerca del límite
-        if (measurements.length > 0) {
-            const highMeasurements = measurements.filter((m) => {
-                // Consideramos alto si está al 80% o más del límite
-                return m.concentracion / m.valor_limite >= 0.8;
-            });
-
-            if (highMeasurements.length > 0) {
-                notifications.push({
-                    id: "high-measurements",
-                    title: `Alerta: Mediciones cercanas al límite`,
-                    description: `${highMeasurements.length} medición(es) están por encima del 80% del límite permitido`,
-                    icon: <AlertCircle className="h-5 w-5 text-amber-500" />,
-                    action: () => navigate("/mediciones"),
-                    type: "warning",
-                });
-            }
-        }
-
-        // Añadir notificación de bienvenida si no hay otras
-        if (notifications.length === 0) {
-            notifications.push({
-                id: "welcome",
-                title: "Bienvenido al dashboard",
-                description: "Aquí verás un resumen de tu actividad y datos importantes",
-                icon: <ThumbsUp className="h-5 w-5 text-green-500" />,
-                type: "success",
-            });
-        }
-
-        setNotifications(notifications);
-    };
 
     // Preparar datos para gráficos
     const prepareChartData = () => {
@@ -503,26 +451,6 @@ const DashboardPage = () => {
                             </div>
                         </div>
                     )}
-
-                    <div
-                        className="card"
-                        onClick={() => navigate("/informes")}
-                        style={{ cursor: "pointer" }}
-                    >
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <FileText size={26} />
-                                <p className="card-title">Informes</p>
-                            </div>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver informes</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <FileText size={18} />
-                                Disponibles
-                            </span>
-                        </div>
-                    </div>
 
                     <div className="card">
                         <div className="card-header">
@@ -763,7 +691,6 @@ const DashboardPage = () => {
                             <div className="rounded-md bg-white/15 px-3 py-1 text-sm backdrop-blur-sm">
                                 Última actualización: {new Date().toLocaleString()}
                             </div>
-                            <div className="rounded-md bg-white/15 px-3 py-1 text-sm backdrop-blur-sm">{notifications.length} notificaciones</div>
                         </div>
                     </div>
                     <div className="absolute bottom-0 right-0 h-40 w-40 translate-x-8 translate-y-8 rounded-full bg-white/10"></div>
@@ -771,44 +698,17 @@ const DashboardPage = () => {
                 </div>
             </div>
 
+            {/* Añade el WeatherCard aquí, justo antes de tus indicadores principales */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Weather Card - Nuevo componente */}
+                <WeatherCard /> {/* Sin pasar userId */}
+                {/* También puedes moverlo a la tarjeta de indicadores si prefieres */}
+            </div>
+
             {/* Indicadores principales */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {/* Indicadores principales */}
                 {renderIndicatorCards()}
-
-                {/* Centro de notificaciones */}
-                <div className="card col-span-1 md:col-span-2 lg:col-span-1">
-                    <div className="card-header">
-                        <div className="flex items-center justify-between">
-                            <p className="card-title">Notificaciones</p>
-                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                                {notifications.length} nuevas
-                            </span>
-                        </div>
-                    </div>
-                    <div className="card-body max-h-[320px] divide-y overflow-y-auto p-0">
-                        {notifications.length > 0 ? (
-                            notifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className="flex cursor-pointer items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-900"
-                                    onClick={notification.action}
-                                >
-                                    <div className="flex items-center space-x-3">
-                                        {notification.icon}
-                                        <div>
-                                            <h3 className="font-medium text-slate-900 dark:text-slate-100">{notification.title}</h3>
-                                            <p className="text-sm text-slate-500 dark:text-slate-400">{notification.description}</p>
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="h-5 w-5 text-slate-400" />
-                                </div>
-                            ))
-                        ) : (
-                            <div className="p-4 text-center text-slate-500 dark:text-slate-400">No hay notificaciones nuevas</div>
-                        )}
-                    </div>
-                </div>
             </div>
 
             {/* Gráficos principales */}

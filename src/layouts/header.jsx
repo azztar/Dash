@@ -1,16 +1,18 @@
 import { useTheme } from "@/hooks/use-theme";
-import { Bell, ChevronsLeft, Moon, Search, Sun } from "lucide-react";
+import { Bell, ChevronsLeft, Moon, Search, Sun, ChevronRight } from "lucide-react";
 import profileImg from "@/assets/profile-image.png";
 import PropTypes from "prop-types";
-import { Menu, Transition } from "@headlessui/react";
+import { Menu, Transition, Popover } from "@headlessui/react";
 import { Fragment } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext"; // Importar contexto de autenticación
+import { useNotifications } from "@/contexts/NotificationContext"; // Importar contexto de notificaciones
 
 export const Header = ({ collapsed, setCollapsed }) => {
     const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
-    const { logout } = useAuth(); // Obtener función de logout del contexto
+    const { logout, user } = useAuth(); // Obtener función de logout del contexto
+    const { notifications } = useNotifications(); // Usar el contexto de notificaciones global
 
     // Función para manejar el cierre de sesión
     const handleLogout = () => {
@@ -55,9 +57,70 @@ export const Header = ({ collapsed, setCollapsed }) => {
                         className="hidden dark:block"
                     />
                 </button>
-                <button className="btn-ghost size-10">
-                    <Bell size={20} />
-                </button>
+
+                {/* Popover de notificaciones */}
+                <Popover className="relative">
+                    {({ open, close }) => (
+                        <>
+                            <Popover.Button
+                                className={`btn-ghost relative flex size-10 items-center justify-center rounded-full ${notifications.length > 0 ? 'after:absolute after:right-1 after:top-1 after:h-2 after:w-2 after:rounded-full after:bg-red-500 after:content-[""]' : ""}`}
+                            >
+                                <Bell size={20} />
+                            </Popover.Button>
+
+                            <Transition
+                                as={Fragment}
+                                enter="transition ease-out duration-200"
+                                enterFrom="opacity-0 translate-y-1"
+                                enterTo="opacity-100 translate-y-0"
+                                leave="transition ease-in duration-150"
+                                leaveFrom="opacity-100 translate-y-0"
+                                leaveTo="opacity-0 translate-y-1"
+                            >
+                                <Popover.Panel className="absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-800">
+                                    <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+                                        <h3 className="font-medium text-slate-900 dark:text-white">Notificaciones</h3>
+                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                            {notifications.length} nuevas
+                                        </span>
+                                    </div>
+
+                                    <div className="max-h-80 divide-y divide-slate-200 overflow-y-auto dark:divide-slate-700">
+                                        {notifications.length > 0 ? (
+                                            notifications.map((notification) => (
+                                                <div
+                                                    key={notification.id}
+                                                    className="flex cursor-pointer items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                                    onClick={() => {
+                                                        if (notification.action) {
+                                                            notification.action();
+                                                        }
+                                                        close();
+                                                    }}
+                                                >
+                                                    <div className="flex items-center space-x-3">
+                                                        {notification.icon}
+                                                        <div>
+                                                            <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                {notification.title}
+                                                            </h3>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">{notification.description}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                                                No hay notificaciones nuevas
+                                            </div>
+                                        )}
+                                    </div>
+                                </Popover.Panel>
+                            </Transition>
+                        </>
+                    )}
+                </Popover>
 
                 {/* Menú desplegable del perfil */}
                 <Menu

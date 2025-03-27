@@ -16,6 +16,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { ToastContainer } from "react-toastify";
 import AdminFiles from "@/routes/archivos/AdminFiles";
 import ClientFiles from "@/routes/archivos/ClientFiles";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 function AppRoutes() {
     const { user } = useAuth(); // Obtener el usuario del contexto
@@ -122,11 +123,13 @@ function AppRoutes() {
 
 function App() {
     return (
-        <AuthProvider>
-            <BrowserRouter>
-                <AppRoutes />
-            </BrowserRouter>
-        </AuthProvider>
+        <BrowserRouter>
+            <AuthProvider>
+                <NotificationProvider>
+                    <AppRoutes />
+                </NotificationProvider>
+            </AuthProvider>
+        </BrowserRouter>
     );
 }
 
