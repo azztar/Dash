@@ -103,9 +103,10 @@ export const WeatherCard = () => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {/* Clima actual */}
                     <div className="flex items-center justify-center md:justify-start">
-                        <div className="mr-6 text-7xl">{weatherIcon}</div>
+                        <div className="mr-4">{React.createElement(weatherIcon, { size: 50, className: "text-blue-500" })}</div>
                         <div>
                             <div className="text-4xl font-bold text-slate-900 dark:text-white">{Math.round(weather.main.temp)}°C</div>
+                            {/* El resto del contenido */}
                             <div className="mt-1 text-lg capitalize text-slate-600 dark:text-slate-300">{weather.weather[0].description}</div>
                             <div className="mt-2 flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
@@ -147,7 +148,8 @@ export const WeatherCard = () => {
 
                 {/* Pronóstico */}
                 <div className="mt-4">
-                    <WeatherForecast forecast={forecast && forecast.slice(1, 6)} />
+                    {/* Cambiar de slice(1, 6) a slice(1, 7) para mostrar 6 días */}
+                    <WeatherForecast forecast={forecast && forecast.slice(1, 7)} />
                 </div>
             </div>
 

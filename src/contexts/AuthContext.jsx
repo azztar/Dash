@@ -27,25 +27,59 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const verifyAuth = async () => {
+            console.log("⏳ Verificando token...", token ? "Token existe" : "No hay token");
+
             if (token) {
                 try {
+                    console.log("🔑 Enviando token:", token.substring(0, 10) + "...");
+
                     const response = await fetch("/api/auth/verify", {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
                     });
                     const data = await response.json();
+                    console.log("✅ Respuesta de verificación:", data);
+
                     if (data.success) {
                         setUser(data.user);
+                        // Guardar usuario en localStorage para persistencia
+                        localStorage.setItem("user_data", JSON.stringify(data.user));
+                        console.log("👤 Usuario autenticado:", data.user?.nombre || data.user?.email);
                     } else {
+                        console.warn("❌ Verificación fallida:", data.message);
                         handleLogout();
                     }
                 } catch (error) {
-                    console.error("Error verificando autenticación:", error);
-                    handleLogout();
+                    console.error("🚫 Error verificando autenticación:", error);
+                    // No cerrar sesión automáticamente en caso de error de red
+                    if (error.name !== "TypeError" && error.name !== "NetworkError") {
+                        handleLogout();
+                    }
+                }
+            } else {
+                // Intenta recuperar usuario del localStorage como fallback
+                const cachedUser = localStorage.getItem("user_data");
+                if (cachedUser) {
+                    try {
+                        const parsedUser = JSON.parse(cachedUser);
+                        console.log("📋 Usando usuario en caché:", parsedUser?.nombre || parsedUser?.email);
+                        setUser(parsedUser);
+
+                        // Opcional: Si tienes un token en localStorage pero no en el estado
+                        const localToken = localStorage.getItem("token");
+                        if (localToken && !token) {
+                            setToken(localToken);
+                        }
+                    } catch (e) {
+                        console.error("Error parseando usuario en caché:", e);
+                    }
                 }
             }
+
+            // Importante: siempre cambiar el estado de carga al finalizar
             setLoading(false);
+            console.log("🔄 Verificación de auth completada");
         };
 
         verifyAuth();
@@ -74,9 +108,9 @@ export const AuthProvider = ({ children }) => {
             value={{
                 user,
                 token,
+                loading, // Añadir esta propiedad
                 login: handleLogin,
                 logout: handleLogout,
-                loading,
             }}
         >
             {children}

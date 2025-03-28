@@ -23,5 +23,30 @@ dist-ssr
 *.sln
 *.sw?
 
-# Ignorar archivo .env
+# Variables de entorno y archivos de configuración local
 .env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Asegurarse que el .env del backend también se ignore
+backend/.env
+backend/.env.*
+
+# Archivos temporales
+*.tmp
+*~
+tmp/
+
+# Archivos de caché
+.cache/
+.eslintcache
+.npm
+.stylelintcache
+
+# Archivos de cobertura
+coverage/

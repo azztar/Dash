@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-// Nueva API key proporcionada por el usuario
-const API_KEY = "19e8c39629534e4773205b56494fe828";
+// Usar variable de entorno en lugar de hardcodear la clave
+const API_KEY = import.meta.env.VITE_WEATHER_API_KEY || "";
 
 export const useWeather = () => {
     const [weather, setWeather] = useState(null);

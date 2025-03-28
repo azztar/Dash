@@ -45,6 +45,8 @@ import {
 
 // Importar el contexto
 import { useNotifications } from "@/contexts/NotificationContext";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 // Mapa de colores para los diferentes parámetros
 const COLORS_MAP = {
@@ -237,30 +239,27 @@ const DashboardPage = () => {
 
     // Preparar datos para gráficos
     const prepareChartData = () => {
-        if (measurements.length === 0) return [];
-
-        // Crear un mapa para asegurar valores únicos
-        const uniqueData = [];
         const usedDates = new Set();
+        const uniqueData = [];
+        let index = 0; // Contador único para asegurar claves únicas
 
-        // Procesar los datos para evitar duplicados
-        measurements.forEach((item, index) => {
-            // Formatear la fecha de manera consistente
-            const dateStr = new Date(item.fecha_muestra).toLocaleDateString();
+        measurements.forEach((item) => {
+            const dateObj = new Date(item.fecha_muestra);
+            const dateStr = format(dateObj, "d MMM", { locale: es });
 
-            // Si ya tenemos datos para esta fecha, no la agregamos de nuevo
+            // Agregar un pequeño offset aleatorio para evitar valores exactamente iguales
+            const randomOffset = Math.random() * 0.05;
+
+            // Usar un contador único como parte de la clave
             if (!usedDates.has(dateStr)) {
                 usedDates.add(dateStr);
-
-                // Pequeña variación en valores idénticos para evitar colisiones
-                const randomOffset = index * 0.001; // Offset minúsculo
 
                 uniqueData.push({
                     name: dateStr,
                     Valor: parseFloat((parseFloat(item.concentracion) + randomOffset).toFixed(2)),
                     Límite: parseFloat(item.valor_limite),
-                    // ID genuinamente único
-                    id: `measure-${index}-${Date.now()}`,
+                    // ID genuinamente único usando contador
+                    id: `measure-${index++}-${Date.now()}`,
                 });
             }
         });
@@ -729,6 +728,7 @@ const DashboardPage = () => {
                                     data={isMobile ? prepareChartData().filter((_, i) => i % 2 === 0) : prepareChartData()}
                                     margin={{ top: 20, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
                                     className="corporate-chart"
+                                    isAnimationActive={false} // Desactivar animaciones puede ayudar con problemas de clave
                                 >
                                     <defs>
                                         <linearGradient
@@ -809,6 +809,26 @@ const DashboardPage = () => {
                                         fill="url(#colorValor)"
                                         isAnimationActive={false}
                                         radius={[4, 4, 0, 0]}
+                                        shape={(props) => {
+                                            // Extraer solo las propiedades que necesita el elemento rect de DOM
+                                            const { x, y, width, height, fill, radius } = props;
+                                            // Crear un key único que no usa las propiedades problemáticas
+                                            const uniqueKey = `rect-valor-${props.index}-${x}-${y}`;
+
+                                            // Devolver un rect con solo props válidas de DOM
+                                            return (
+                                                <rect
+                                                    key={uniqueKey}
+                                                    x={x}
+                                                    y={y}
+                                                    width={width}
+                                                    height={height}
+                                                    fill={fill}
+                                                    rx={(radius && radius[0]) || 0}
+                                                    ry={(radius && radius[0]) || 0}
+                                                />
+                                            );
+                                        }}
                                     />
                                     <Bar
                                         dataKey="Límite"
@@ -816,6 +836,26 @@ const DashboardPage = () => {
                                         fill="url(#colorLimite)"
                                         isAnimationActive={false}
                                         radius={[4, 4, 0, 0]}
+                                        shape={(props) => {
+                                            // Extraer solo las propiedades que necesita el elemento rect de DOM
+                                            const { x, y, width, height, fill, radius } = props;
+                                            // Crear un key único que no usa las propiedades problemáticas
+                                            const uniqueKey = `rect-limite-${props.index}-${x}-${y}`;
+
+                                            // Devolver un rect con solo props válidas de DOM
+                                            return (
+                                                <rect
+                                                    key={uniqueKey}
+                                                    x={x}
+                                                    y={y}
+                                                    width={width}
+                                                    height={height}
+                                                    fill={fill}
+                                                    rx={(radius && radius[0]) || 0}
+                                                    ry={(radius && radius[0]) || 0}
+                                                />
+                                            );
+                                        }}
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
