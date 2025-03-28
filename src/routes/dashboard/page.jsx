@@ -311,9 +311,8 @@ const DashboardPage = () => {
         );
     };
 
-    // Renderizar tarjetas de indicadores principales
+    // Reducir el número de cards de indicadores
     const renderIndicatorCards = () => {
-        // Si tenemos datos reales de mediciones, mostrarlos
         if (latestMeasurement) {
             const paramValue = latestMeasurement.concentracion;
             const limit = latestMeasurement.valor_limite;
@@ -322,23 +321,37 @@ const DashboardPage = () => {
 
             return (
                 <>
-                    {/* Reemplazar la primera tarjeta de indicadores con diseño corporativo */}
-                    <div className="card group transition-all hover:border-blue-200 dark:hover:border-blue-800">
+                    {/* Card consolidada con los datos principales */}
+                    <div className="card group col-span-1 transition-all hover:border-blue-200 dark:hover:border-blue-800 lg:col-span-2">
                         <div className="card-header border-b-0">
                             <div className="dashboard-icon bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 dark:bg-blue-600/10 dark:text-blue-400 dark:group-hover:bg-blue-600/20">
                                 <Wind size={26} />
                             </div>
-                            <p className="card-title">{latestMeasurement.parametro}</p>
+                            <div className="flex w-full justify-between">
+                                <p className="card-title">{latestMeasurement.parametro}</p>
+                                <span className={`indicator-badge ${isHigh ? "border-amber-500 text-amber-500" : "border-green-500 text-green-500"}`}>
+                                    {isHigh ? "Alerta" : "Normal"}
+                                </span>
+                            </div>
                         </div>
                         <div className="card-body bg-gradient-to-br from-slate-50 to-slate-100 pt-2 dark:from-slate-900 dark:to-slate-950">
-                            <p className="indicator-value">
-                                {paramValue} <span className="text-lg font-normal opacity-70">µg/m³</span>
-                            </p>
-                            <span className={`indicator-badge mt-2 ${isHigh ? "border-amber-500 text-amber-500" : "border-blue-500 text-blue-500"}`}>
-                                {isHigh ? <TrendingUp size={18} /> : <CheckCircle size={18} />}
-                                {percentage}% del límite
-                            </span>
-                            <div className="mt-3 h-1 w-full rounded-full bg-slate-200 dark:bg-slate-800">
+                            <div className="flex items-center justify-between">
+                                <p className="indicator-value">
+                                    {paramValue} <span className="text-lg font-normal opacity-70">µg/m³</span>
+                                </p>
+                                <div className="text-right">
+                                    <span className={`flex items-center gap-1 ${isHigh ? "text-amber-500" : "text-blue-500"}`}>
+                                        {isHigh ? <TrendingUp size={18} /> : <CheckCircle size={18} />}
+                                        {percentage}% del límite
+                                    </span>
+                                    <p className="text-sm text-slate-500">
+                                        {measurements.length > 1 && measurements[0].concentracion > measurements[1].concentracion
+                                            ? "Tendencia: ↗ Subiendo"
+                                            : "Tendencia: ↘ Bajando"}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-3 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
                                 <div
                                     className={`h-full rounded-full ${
                                         percentage > 80 ? "bg-red-500" : percentage > 50 ? "bg-amber-500" : "bg-green-500"
@@ -349,160 +362,39 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
+                    {/* Archivos e informes en una única card */}
                     <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <Cloud size={26} />
-                                <p className="card-title">Estado</p>
-                            </div>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{isHigh ? "Alerta" : "Normal"}</p>
-                            <span
-                                className={`flex w-fit items-center gap-x-2 rounded-full border px-2 py-1 font-medium ${
-                                    isHigh ? "border-amber-500 text-amber-500" : "border-green-500 text-green-500"
-                                }`}
-                            >
-                                {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
-                                {isHigh ? "Revisar" : "Conforme"}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <Workflow size={26} />
-                                <p className="card-title">Tendencia</p>
-                            </div>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">
-                                {measurements.length > 1 && measurements[0].concentracion > measurements[1].concentracion
-                                    ? "↗ Subiendo"
-                                    : "↘ Bajando"}
-                            </p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                {measurements.length > 1 && measurements[0].concentracion > measurements[1].concentracion ? (
-                                    <TrendingUp size={18} />
-                                ) : (
-                                    <TrendingDown size={18} />
-                                )}
-                                Últimas 24h
-                            </span>
-                        </div>
-                    </div>
-
-                    <div
-                        className="card"
-                        onClick={() => navigate("/archivos")}
-                        style={{ cursor: "pointer" }}
-                    >
                         <div className="card-header">
                             <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <FileText size={26} />
                             </div>
-                            <p className="card-title">Archivos</p>
+                            <p className="card-title">Documentos</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <FileText size={18} />
-                                Disponibles
-                            </span>
-                        </div>
-                    </div>
-
-                    {files && files.length > 0 ? (
-                        <div
-                            className="card"
-                            onClick={() => navigate("/informes")}
-                            style={{ cursor: "pointer" }}
-                        >
-                            <div className="card-header">
-                                <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                    <FileText size={26} />
-                                </div>
-                                <p className="card-title">Informes</p>
-                            </div>
-                            <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                                <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Ver informes</p>
-                                <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                    <FileText size={18} />
-                                    Disponibles
-                                </span>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="card">
-                            <div className="card-header">
-                                <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                    <FileText size={26} />
-                                </div>
-                                <p className="card-title">Informes</p>
-                            </div>
-                            <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                                <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Sin informes</p>
-                                <span className="flex w-fit items-center gap-x-2 rounded-full border border-gray-400 px-2 py-1 font-medium text-gray-500">
-                                    <AlertCircle size={18} />
-                                    No hay informes disponibles
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="card">
-                        <div className="card-header">
-                            <p className="card-title">Estado de Cumplimiento</p>
-                        </div>
-                        <div className="card-body">
                             <div className="flex items-center justify-between">
-                                <p className="text-slate-800 dark:text-slate-200">
-                                    {latestMeasurement.parametro || "Parámetro"} ({latestMeasurement.unidad || "µg/m³"})
-                                </p>
-                                {parseNumberWithLocale(latestMeasurement.concentracion) <= latestMeasurement.valor_limite ? (
-                                    <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                        CUMPLE
+                                <div className="flex-1">
+                                    <p className="text-2xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
+                                    <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
+                                        <FileText size={18} />
+                                        Archivos
                                     </span>
-                                ) : (
-                                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                                        NO CUMPLE
-                                    </span>
-                                )}
+                                </div>
+                                <div
+                                    className="ml-4 cursor-pointer rounded-lg bg-blue-100 px-3 py-2 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                                    onClick={() => navigate("/archivos")}
+                                >
+                                    <ChevronRight size={20} />
+                                </div>
                             </div>
-                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                                {(() => {
-                                    const percent = Math.min(
-                                        100,
-                                        Math.round((parseNumberWithLocale(latestMeasurement.concentracion) / latestMeasurement.valor_limite) * 100),
-                                    );
-                                    const colorClass = percent > 80 ? "bg-red-500" : percent > 50 ? "bg-amber-500" : "bg-green-500";
-                                    return (
-                                        <div
-                                            className={`h-full ${colorClass}`}
-                                            style={{ width: `${percent}%` }}
-                                        ></div>
-                                    );
-                                })()}
-                            </div>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Concentración actual:{" "}
-                                {Math.round((parseNumberWithLocale(latestMeasurement.concentracion) / latestMeasurement.valor_limite) * 100)}% del
-                                límite permitido
-                            </p>
                         </div>
                     </div>
                 </>
             );
         } else {
-            // Indicadores por defecto si no tenemos datos reales de mediciones
+            // Versión simplificada sin datos disponibles
             return (
                 <>
-                    <div
-                        className="card"
-                        onClick={() => navigate("/aire")} // Cambia esta línea
-                        style={{ cursor: "pointer" }}
-                    >
+                    <div className="card col-span-1 lg:col-span-3">
                         <div className="card-header">
                             <div className="w-fit rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
                                 <Wind size={26} />
@@ -510,31 +402,15 @@ const DashboardPage = () => {
                             <p className="card-title">Calidad del aire</p>
                         </div>
                         <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">Sin datos</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-gray-400 px-2 py-1 font-medium text-gray-500">
-                                <AlertCircle size={18} />
-                                No hay mediciones disponibles
-                            </span>
-                        </div>
-                    </div>
-
-                    <div
-                        className="card"
-                        onClick={() => navigate("/archivos")}
-                        style={{ cursor: "pointer" }}
-                    >
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <File size={26} />
+                            <div className="flex items-center">
+                                <p className="text-xl font-bold text-slate-900 transition-colors dark:text-slate-50">No hay mediciones disponibles</p>
+                                <button
+                                    className="ml-auto rounded-md bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
+                                    onClick={() => navigate("/aire")}
+                                >
+                                    Ver datos
+                                </button>
                             </div>
-                            <p className="card-title">Archivos</p>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <p className="text-3xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
-                            <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                <FileText size={18} />
-                                Disponibles
-                            </span>
                         </div>
                     </div>
                 </>
@@ -652,6 +528,8 @@ const DashboardPage = () => {
             .slice(0, 10); // Mostrar solo las 10 fechas más recientes
     };
 
+    const [activeTab, setActiveTab] = useState("maximum");
+
     return (
         <div className="flex flex-col gap-y-4 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">Dashboard</h1>
@@ -711,8 +589,9 @@ const DashboardPage = () => {
             </div>
 
             {/* Gráficos principales */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <div className="card col-span-1 md:col-span-2 lg:col-span-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Gráfica de barras */}
+                <div className="card">
                     <div className="card-header">
                         <p className="card-title">Tendencias de Calidad del Aire</p>
                     </div>
@@ -720,15 +599,12 @@ const DashboardPage = () => {
                         {measurements.length > 0 ? (
                             <ResponsiveContainer
                                 width="100%"
-                                height={300}
+                                height={250}
                             >
-                                {/* Usar una clave única para toda la gráfica */}
                                 <BarChart
-                                    key={`chart-${Date.now()}`}
                                     data={isMobile ? prepareChartData().filter((_, i) => i % 2 === 0) : prepareChartData()}
                                     margin={{ top: 20, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
                                     className="corporate-chart"
-                                    isAnimationActive={false} // Desactivar animaciones puede ayudar con problemas de clave
                                 >
                                     <defs>
                                         <linearGradient
@@ -810,12 +686,12 @@ const DashboardPage = () => {
                                         isAnimationActive={false}
                                         radius={[4, 4, 0, 0]}
                                         shape={(props) => {
-                                            // Extraer solo las propiedades que necesita el elemento rect de DOM
-                                            const { x, y, width, height, fill, radius } = props;
-                                            // Crear un key único que no usa las propiedades problemáticas
-                                            const uniqueKey = `rect-valor-${props.index}-${x}-${y}`;
+                                            // Extraer propiedades
+                                            const { x, y, width, height, fill, radius, index, payload } = props;
 
-                                            // Devolver un rect con solo props válidas de DOM
+                                            // Crear clave única con más información para evitar colisiones
+                                            const uniqueKey = `valor-${index}-${payload?.name}-${Math.random().toString(36).substring(2, 9)}`;
+
                                             return (
                                                 <rect
                                                     key={uniqueKey}
@@ -830,6 +706,7 @@ const DashboardPage = () => {
                                             );
                                         }}
                                     />
+
                                     <Bar
                                         dataKey="Límite"
                                         name="Límite Permitido"
@@ -837,12 +714,12 @@ const DashboardPage = () => {
                                         isAnimationActive={false}
                                         radius={[4, 4, 0, 0]}
                                         shape={(props) => {
-                                            // Extraer solo las propiedades que necesita el elemento rect de DOM
-                                            const { x, y, width, height, fill, radius } = props;
-                                            // Crear un key único que no usa las propiedades problemáticas
-                                            const uniqueKey = `rect-limite-${props.index}-${x}-${y}`;
+                                            // Extraer propiedades
+                                            const { x, y, width, height, fill, radius, index, payload } = props;
 
-                                            // Devolver un rect con solo props válidas de DOM
+                                            // Crear clave única con más información para evitar colisiones
+                                            const uniqueKey = `limite-${index}-${payload?.name}-${Math.random().toString(36).substring(2, 9)}`;
+
                                             return (
                                                 <rect
                                                     key={uniqueKey}
@@ -860,27 +737,19 @@ const DashboardPage = () => {
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="flex h-[300px] items-center justify-center">
+                            <div className="flex h-[250px] items-center justify-center">
                                 <p className="text-gray-500">No hay suficientes datos para mostrar tendencias</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* 2. Mejora en el renderizado del gráfico */}
-                <div className="card col-span-1 md:col-span-2 lg:col-span-3">
+                {/* Gráfica de pastel */}
+                <div className="card">
                     <div className="card-header">
-                        <div className="flex items-center justify-between">
-                            <p className="card-title">Distribución de Contaminantes</p>
-                            <span className="text-xs text-slate-500">
-                                {/* Muestra el período de los datos */}
-                                {measurements.length > 0
-                                    ? `Datos: ${new Date(measurements[measurements.length - 1].fecha_muestra).toLocaleDateString()} - ${new Date(measurements[0].fecha_muestra).toLocaleDateString()}`
-                                    : "Sin datos"}
-                            </span>
-                        </div>
+                        <p className="card-title">Distribución de Contaminantes</p>
                     </div>
-                    <div className="card-body h-[300px] overflow-auto p-0">
+                    <div className="card-body h-[250px] p-0">
                         {prepareParametersData().length > 0 ? (
                             <ResponsiveContainer
                                 width="100%"
@@ -976,166 +845,198 @@ const DashboardPage = () => {
                             </ResponsiveContainer>
                         ) : (
                             <div className="flex h-full items-center justify-center">
-                                <p className="text-gray-500">No hay datos de distribución disponibles para este cliente</p>
+                                <p className="text-gray-500">No hay datos de distribución disponibles</p>
                             </div>
                         )}
                     </div>
-                    <div className="border-t p-3 text-sm text-slate-500">
-                        <p>Este gráfico muestra la distribución porcentual de los distintos contaminantes medidos.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="card overflow-hidden">
-                <div className="card-header flex items-center justify-between">
-                    <p className="card-title flex items-center">
-                        <BarChart2 className="mr-2 h-5 w-5 text-blue-500" />
-                        Mediciones Máximas por Parámetro
-                    </p>
-                    <div className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                        {getMaxMeasurementsByParameter().length} parámetros
-                    </div>
-                </div>
-                <div className="overflow-hidden">
-                    {getMaxMeasurementsByParameter().length > 0 ? (
-                        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                            {getMaxMeasurementsByParameter().map((item, index) => {
-                                const percent = Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100);
-                                const isHigh = percent > 80;
-
-                                return (
-                                    <div
-                                        key={index}
-                                        className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center">
-                                                <div
-                                                    className={`mr-3 rounded-md p-2 ${
-                                                        isHigh
-                                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                    }`}
-                                                >
-                                                    {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-slate-900 dark:text-slate-100">{item.parametro}</p>
-                                                    <p className="text-sm text-slate-500">{new Date(item.fecha).toLocaleDateString()}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-lg font-bold">
-                                                    {parseNumberWithLocale(item.concentracion).toFixed(2)}
-                                                    <span className="ml-1 text-xs font-normal text-slate-500">{item.unidad}</span>
-                                                </p>
-                                                <div className="mt-1 flex items-center gap-2">
-                                                    <div className="h-1.5 w-16 rounded-full bg-slate-200 dark:bg-slate-700">
-                                                        <div
-                                                            className={`h-full rounded-full ${isHigh ? "bg-amber-500" : "bg-green-500"}`}
-                                                            style={{ width: `${Math.min(100, percent)}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span
-                                                        className={`text-xs font-medium ${
-                                                            isHigh ? "text-amber-800 dark:text-amber-400" : "text-green-800 dark:text-green-400"
-                                                        }`}
-                                                    >
-                                                        {percent}%
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="flex h-40 items-center justify-center">
-                            <p className="text-slate-500">No hay datos de mediciones disponibles</p>
-                        </div>
-                    )}
                 </div>
             </div>
 
             <div className="card mt-4">
-                <div className="card-header">
-                    <p className="card-title">Evolución Histórica por Parámetro</p>
-                </div>
-                <div className="card-body p-0">
-                    {prepareHistoricalData().length > 0 ? (
-                        <div
-                            className="w-full"
-                            style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
+                <div className="card-header border-b-0 pb-0">
+                    <div className="flex border-b">
+                        <button
+                            className={`px-4 py-2 ${activeTab === "maximum" ? "border-b-2 border-blue-500 font-medium text-blue-600" : "text-slate-500"}`}
+                            onClick={() => setActiveTab("maximum")}
                         >
-                            <ResponsiveContainer
-                                width="100%"
-                                height="100%"
-                            >
-                                <LineChart
-                                    data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
-                                    margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="fecha"
-                                        tick={{ fontSize: isMobile ? 10 : 12 }}
-                                        angle={isMobile ? -45 : 0}
-                                        textAnchor={isMobile ? "end" : "middle"}
-                                        height={isMobile ? 60 : 30}
-                                    />
-                                    <YAxis
-                                        tick={{ fontSize: isMobile ? 10 : 12 }}
-                                        width={isMobile ? 30 : 40}
-                                        tickCount={isMobile ? 3 : 5}
-                                    />
-                                    <Tooltip
-                                        cursor={{ strokeDasharray: "3 3" }}
-                                        wrapperStyle={{
-                                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                                            padding: isMobile ? "15px" : "10px",
-                                            border: "1px solid #ccc",
-                                            borderRadius: "5px",
-                                            fontSize: isMobile ? "14px" : "12px",
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="SO2"
-                                        stroke="#3b82f6"
-                                        strokeWidth={2}
-                                        dot={{ r: 3 }}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="PM10"
-                                        stroke="#ef4444"
-                                        strokeWidth={2}
-                                        dot={{ r: 3 }}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                    {parametersLimits &&
-                                        Object.entries(parametersLimits).map(([param, { limit, unit }]) => (
-                                            <ReferenceLine
-                                                key={`limit-${param}`}
-                                                y={limit}
-                                                stroke={COLORS_MAP[param] || "#ef4444"}
-                                                strokeDasharray="3 3"
-                                                label={{
-                                                    position: "top",
-                                                    value: `Límite ${param}`,
-                                                    fill: theme === "light" ? COLORS_MAP[param] : lightenColor(COLORS_MAP[param] || "#ef4444"),
-                                                }}
-                                            />
-                                        ))}
-                                </LineChart>
-                            </ResponsiveContainer>
+                            Mediciones Máximas
+                        </button>
+                        <button
+                            className={`px-4 py-2 ${activeTab === "evolution" ? "border-b-2 border-blue-500 font-medium text-blue-600" : "text-slate-500"}`}
+                            onClick={() => setActiveTab("evolution")}
+                        >
+                            Evolución Histórica
+                        </button>
+                    </div>
+                </div>
+                <div className="card-body">
+                    {activeTab === "maximum" ? (
+                        // Contenido de Mediciones Máximas
+                        <div className="max-h-[400px] overflow-auto">
+                            <div className="card overflow-hidden">
+                                <div className="card-header flex items-center justify-between">
+                                    <p className="card-title flex items-center">
+                                        <BarChart2 className="mr-2 h-5 w-5 text-blue-500" />
+                                        Mediciones Máximas por Parámetro
+                                    </p>
+                                    <div className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                        {getMaxMeasurementsByParameter().length} parámetros
+                                    </div>
+                                </div>
+                                <div className="overflow-hidden">
+                                    {getMaxMeasurementsByParameter().length > 0 ? (
+                                        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+                                            {getMaxMeasurementsByParameter().map((item, index) => {
+                                                const percent = Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100);
+                                                const isHigh = percent > 80;
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center">
+                                                                <div
+                                                                    className={`mr-3 rounded-md p-2 ${
+                                                                        isHigh
+                                                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                                    }`}
+                                                                >
+                                                                    {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-slate-900 dark:text-slate-100">{item.parametro}</p>
+                                                                    <p className="text-sm text-slate-500">
+                                                                        {new Date(item.fecha).toLocaleDateString()}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-lg font-bold">
+                                                                    {parseNumberWithLocale(item.concentracion).toFixed(2)}
+                                                                    <span className="ml-1 text-xs font-normal text-slate-500">{item.unidad}</span>
+                                                                </p>
+                                                                <div className="mt-1 flex items-center gap-2">
+                                                                    <div className="h-1.5 w-16 rounded-full bg-slate-200 dark:bg-slate-700">
+                                                                        <div
+                                                                            className={`h-full rounded-full ${isHigh ? "bg-amber-500" : "bg-green-500"}`}
+                                                                            style={{ width: `${Math.min(100, percent)}%` }}
+                                                                        ></div>
+                                                                    </div>
+                                                                    <span
+                                                                        className={`text-xs font-medium ${
+                                                                            isHigh
+                                                                                ? "text-amber-800 dark:text-amber-400"
+                                                                                : "text-green-800 dark:text-green-400"
+                                                                        }`}
+                                                                    >
+                                                                        {percent}%
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-40 items-center justify-center">
+                                            <p className="text-slate-500">No hay datos de mediciones disponibles</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex h-[200px] items-center justify-center">
-                            <p className="text-gray-500">No hay suficientes datos históricos para este cliente</p>
+                        // Contenido de Evolución Histórica
+                        <div className="h-[400px]">
+                            <div className="card mt-4">
+                                <div className="card-header">
+                                    <p className="card-title">Evolución Histórica por Parámetro</p>
+                                </div>
+                                <div className="card-body p-0">
+                                    {prepareHistoricalData().length > 0 ? (
+                                        <div
+                                            className="w-full"
+                                            style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
+                                        >
+                                            <ResponsiveContainer
+                                                width="100%"
+                                                height="100%"
+                                            >
+                                                <LineChart
+                                                    data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
+                                                    margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis
+                                                        dataKey="fecha"
+                                                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                                                        angle={isMobile ? -45 : 0}
+                                                        textAnchor={isMobile ? "end" : "middle"}
+                                                        height={isMobile ? 60 : 30}
+                                                    />
+                                                    <YAxis
+                                                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                                                        width={isMobile ? 30 : 40}
+                                                        tickCount={isMobile ? 3 : 5}
+                                                    />
+                                                    <Tooltip
+                                                        cursor={{ strokeDasharray: "3 3" }}
+                                                        wrapperStyle={{
+                                                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                                                            padding: isMobile ? "15px" : "10px",
+                                                            border: "1px solid #ccc",
+                                                            borderRadius: "5px",
+                                                            fontSize: isMobile ? "14px" : "12px",
+                                                        }}
+                                                    />
+                                                    <Legend />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="SO2"
+                                                        stroke="#3b82f6"
+                                                        strokeWidth={2}
+                                                        dot={{ r: 3 }}
+                                                        activeDot={{ r: 6 }}
+                                                    />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="PM10"
+                                                        stroke="#ef4444"
+                                                        strokeWidth={2}
+                                                        dot={{ r: 3 }}
+                                                        activeDot={{ r: 6 }}
+                                                    />
+                                                    {parametersLimits &&
+                                                        Object.entries(parametersLimits).map(([param, { limit, unit }]) => (
+                                                            <ReferenceLine
+                                                                key={`limit-${param}`}
+                                                                y={limit}
+                                                                stroke={COLORS_MAP[param] || "#ef4444"}
+                                                                strokeDasharray="3 3"
+                                                                label={{
+                                                                    position: "top",
+                                                                    value: `Límite ${param}`,
+                                                                    fill:
+                                                                        theme === "light"
+                                                                            ? COLORS_MAP[param]
+                                                                            : lightenColor(COLORS_MAP[param] || "#ef4444"),
+                                                                }}
+                                                            />
+                                                        ))}
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-[200px] items-center justify-center">
+                                            <p className="text-gray-500">No hay suficientes datos históricos para este cliente</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
