@@ -193,27 +193,29 @@ const AdminFiles = () => {
                             files.map((file) => (
                                 <div
                                     key={file.id_archivo}
-                                    className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    className="flex flex-col items-start justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 sm:flex-row sm:items-center"
                                 >
-                                    <div className="flex items-center space-x-4">
-                                        <FileText className="h-8 w-8 text-blue-500" />
-                                        <div>
-                                            <p className="font-medium text-gray-900 dark:text-white">{file.nombre_original}</p>
+                                    <div className="mb-3 flex w-full items-start space-x-3 sm:mb-0 sm:w-3/4 sm:items-center sm:space-x-4">
+                                        <FileText className="h-8 w-8 flex-shrink-0 text-blue-500" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="max-w-full truncate font-medium text-gray-900 dark:text-white">{file.nombre_original}</p>
                                             <p className="text-sm text-gray-500">Subido el: {new Date(file.fecha_carga).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <div className="flex space-x-2">
+                                    <div className="flex w-full justify-end space-x-2 sm:w-auto sm:space-x-3">
                                         <button
                                             onClick={() => handleDownload(file.id_archivo)}
-                                            className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
+                                            className="rounded-md bg-blue-500 p-2 text-white transition-colors hover:bg-blue-600 sm:rounded-lg sm:p-2"
+                                            aria-label="Descargar archivo"
                                         >
-                                            <Download size={20} />
+                                            <Download size={18} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(file.id_archivo)}
-                                            className="rounded-lg bg-red-500 p-2 text-white hover:bg-red-600"
+                                            className="rounded-md bg-red-500 p-2 text-white transition-colors hover:bg-red-600 sm:rounded-lg sm:p-2"
+                                            aria-label="Eliminar archivo"
                                         >
-                                            <Trash2 size={20} />
+                                            <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>

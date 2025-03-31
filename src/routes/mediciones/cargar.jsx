@@ -152,10 +152,10 @@ const DataUploadPage = () => {
     };
 
     return (
-        <PageContainer>
+        <PageContainer className="mediciones-cargar-page">
             <h1 className="mb-8 text-2xl font-bold text-slate-900 dark:text-white">Carga de Mediciones y Declaraciones</h1>
 
-            <div className="p-6">
+            <div className="mediciones-cargar-page p-6">
                 <form onSubmit={handleSubmit}>
                     <Card className="space-y-8 dark:bg-slate-800 dark:text-white">
                         {/* Sección de Selección */}

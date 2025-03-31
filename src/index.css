@@ -192,6 +192,63 @@
     @apply bg-blue-50 text-slate-900 dark:bg-blue-900 dark:text-white;
 }
 
+/* Corregir alineación de selectores de Tremor */
+.tremor-Select-button {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-width: 10rem !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    background-color: white !important;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    padding-right: 0.75rem !important;
+}
+
+.dark .tremor-Select-button {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: white !important;
+}
+
+/* Asegurar que el icono se muestre correctamente */
+.tremor-Select-button svg {
+    flex-shrink: 0 !important;
+    margin-left: 0.5rem !important;
+    height: 1.25rem !important;
+    width: 1.25rem !important;
+}
+
+/* Asegurar que el texto no se desborde */
+.tremor-Select-button span {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+    flex-grow: 1 !important;
+}
+
+/* Garantizar que el texto dentro del selector no se superponga con el icono */
+.tremor-Select-button>span:first-child {
+    flex-grow: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding-right: 0.5rem !important;
+}
+
+/* Corrección específica para el icono de flecha de Tremor Select */
+.tremor-Select-arrowDownIcon {
+    position: static !important;
+    margin-left: 0.5rem !important;
+    transform: none !important;
+    min-width: 1.25rem !important;
+    min-height: 1.25rem !important;
+}
+
 /* Estilos para el DatePicker */
 .tremor-DatePicker-root {
     position: relative;
@@ -397,10 +454,220 @@
 
 /* Mejora visual para selects */
 select {
-    appearance: auto;
+    appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
     padding-right: 2.5rem;
+}
+
+/* Mejora visual para selects HTML nativos (no Tremor) */
+select:not(.tremor-Select-select) {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    white-space: nowrap;
+}
+
+/* Correcciones específicas para la página de carga de mediciones */
+.mediciones-cargar-page .tremor-Select-button {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 1 !important;
+}
+
+.mediciones-cargar-page .tremor-Select-arrowDownIcon {
+    position: static !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+}
+
+.mediciones-cargar-page .tremor-Select-content {
+    z-index: 50 !important;
+    position: absolute !important;
+    width: 100% !important;
+    background-color: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mediciones-cargar-page .dark .tremor-Select-content {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+/* Solución específica para el icono en la página de cargar mediciones */
+.mediciones-cargar-page .tremor-Select-button {
+    padding-right: 2.5rem !important;
+    /* Espacio para el icono */
+    position: relative !important;
+}
+
+.mediciones-cargar-page .tremor-Select-button .tremor-Select-arrowDownIcon {
+    position: absolute !important;
+    right: 0.75rem !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    pointer-events: none !important;
+}
+
+/* Eliminar cualquier ícono de fondo adicional */
+.mediciones-cargar-page .tremor-Select-button {
+    background-image: none !important;
+}
+
+/* Garantizar que el texto no se superponga con el icono */
+.mediciones-cargar-page .tremor-Select-button span {
+    max-width: calc(100% - 2rem) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+}
+
+/* Solución definitiva para el problema del ícono en la página de carga */
+.mediciones-cargar-page .tremor-Select-arrowDownIcon {
+    position: absolute !important;
+    right: 0.75rem !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+.mediciones-cargar-page .tremor-Select-button {
+    position: relative !important;
+    padding-right: 2.5rem !important;
+}
+
+/* Solución definitiva para el ícono en selectores de la página de carga */
+.mediciones-cargar-page .tremor-Select-button {
+    position: relative !important;
+    padding-right: 2.75rem !important;
+    /* Aumenté ligeramente el padding */
+}
+
+.mediciones-cargar-page .tremor-Select-button .tremor-Select-arrowDownIcon {
+    position: absolute !important;
+    right: 0.75rem !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    pointer-events: none !important;
+}
+
+/* Aumentar espacio para que el texto no se superponga con el ícono */
+.mediciones-cargar-page .tremor-Select-button span {
+    max-width: calc(100% - 2.75rem) !important;
+    /* Incrementé este valor */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+}
+
+/* Reajustar z-index para asegurar visibilidad del dropdown */
+.mediciones-cargar-page .relative .tremor-Select-content {
+    z-index: 9999 !important;
+}
+
+/* Asegurar que los menús desplegables aparezcan por encima de todo */
+.tremor-Select-content[role="listbox"] {
+    z-index: 9999 !important;
+}
+
+/* === Estilización elegante para selectores en página de carga === */
+.mediciones-cargar-page .tremor-Select-root {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.mediciones-cargar-page .tremor-Select-button {
+    position: relative !important;
+    width: 100% !important;
+    padding: 0.625rem 1rem !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.5rem !important;
+    background-color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    min-height: 2.5rem !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.mediciones-cargar-page .dark .tremor-Select-button {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.mediciones-cargar-page .tremor-Select-button:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Estilización del texto dentro del selector */
+.mediciones-cargar-page .tremor-Select-button span {
+    flex-grow: 1 !important;
+    text-align: left !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    padding-right: 2rem !important;
+    font-size: 0.875rem !important;
+}
+
+/* Posicionamiento elegante del icono de flecha */
+.mediciones-cargar-page .tremor-Select-button svg {
+    position: absolute !important;
+    right: 0.75rem !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    color: #64748b !important;
+    opacity: 0.8 !important;
+    pointer-events: none !important;
+}
+
+.mediciones-cargar-page .dark .tremor-Select-button svg {
+    color: #94a3b8 !important;
+}
+
+/* Panel desplegable */
+.mediciones-cargar-page .tremor-Select-content {
+    background-color: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.5rem !important;
+    margin-top: 0.25rem !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    z-index: 9999 !important;
+}
+
+.mediciones-cargar-page .dark .tremor-Select-content {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+/* Añadir al final de index.css */
+@media (max-width: 640px) {
+    .headlessui-menu-items {
+        position: fixed !important;
+        top: auto !important;
+        right: 16px !important;
+        left: auto !important;
+        bottom: auto !important;
+        max-width: calc(100vw - 32px) !important;
+        z-index: 9999 !important;
+    }
 }

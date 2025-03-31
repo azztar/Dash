@@ -25,6 +25,7 @@ export const AdminDateSelector = ({ selectedDate, onSelect }) => {
                 yearDropdownItemNumber={15}
                 scrollableYearDropdown
                 placeholderText="Seleccione fecha"
+                showIcon={false}
                 className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                     isDarkMode ? "border-gray-700 bg-gray-800 text-white" : "border-gray-300 bg-white text-gray-900"
                 }`}

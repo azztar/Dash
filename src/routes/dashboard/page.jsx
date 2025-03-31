@@ -270,23 +270,53 @@ const DashboardPage = () => {
 
     // 1. Mejora en la función de preparación de datos
     const prepareParametersData = () => {
-        if (!measurementsByType || measurementsByType.length === 0) {
-            return [];
+        if (measurements.length === 0) {
+            return []; // Añadir llaves y return explícito
         }
 
-        // Asegurar que los valores suman 100% para mejor visualización
-        const total = measurementsByType.reduce((sum, item) => sum + item.value, 0);
+        // Agrupar mediciones por parámetro
+        const groupedByParam = {};
+        let totalSum = 0;
 
-        return measurementsByType.map((item) => ({
-            name: item.name,
-            value: item.value,
-            percentage: ((item.value / total) * 100).toFixed(1),
-            // Asumimos que estos datos están disponibles o se pueden calcular
-            max: item.max || 0,
-            min: item.min || 0,
-            avg: item.avg || 0,
-            unit: item.unit || "µg/m³",
-        }));
+        // Primera pasada: agrupar y calcular el total
+        measurements.forEach((m) => {
+            const value = parseNumberWithLocale(m.concentracion);
+            if (isNaN(value)) return; // Ignorar valores no numéricos
+
+            // Si el parámetro no existe en el grupo, inicializarlo
+            if (!groupedByParam[m.parametro]) {
+                groupedByParam[m.parametro] = 0;
+            }
+
+            // Sumar el valor al grupo correspondiente
+            groupedByParam[m.parametro] += value;
+            totalSum += value;
+        });
+
+        // Si no hay datos válidos o la suma total es cero, retornar un conjunto de datos predeterminado
+        if (totalSum === 0 || Object.keys(groupedByParam).length === 0) {
+            return [
+                {
+                    name: "Sin datos",
+                    value: 1,
+                    percentage: 100,
+                },
+            ];
+        }
+
+        // Segunda pasada: crear el array final con porcentajes
+        const result = Object.keys(groupedByParam).map((param) => {
+            const value = groupedByParam[param];
+            const percentage = ((value / totalSum) * 100).toFixed(1);
+
+            return {
+                name: param,
+                value: value,
+                percentage: parseFloat(percentage),
+            };
+        });
+
+        return result;
     };
 
     // Constantes para gráficos
