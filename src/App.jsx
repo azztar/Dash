@@ -80,7 +80,11 @@ function AppRoutes() {
                     />
                     <Route
                         path="/archivos"
-                        element={user?.rol === "administrador" ? <AdminFiles /> : <ClientFiles />}
+                        element={
+                            <ProtectedRoute>
+                                {user?.rol === "administrador" || user?.rol === "empleado" ? <AdminFiles /> : <ClientFiles />}
+                            </ProtectedRoute>
+                        }
                     />
                 </Route>
 

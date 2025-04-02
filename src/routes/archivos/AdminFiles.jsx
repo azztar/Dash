@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card } from "@tremor/react"; // Asegúrate de que @tremor/react está instalado
 import { Download, FileText, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,9 @@ const AdminFiles = () => {
     const { token, user } = useAuth(); // Agregar user
     const isAdmin = user?.rol === "administrador";
     const API_URL = import.meta.env.VITE_API_URL;
+
+    // Agregar esta referencia para el FileUploader
+    const fileUploaderRef = useRef(null);
 
     // Cargar archivos
     const fetchFiles = async (clientId = null) => {
@@ -120,8 +123,10 @@ const AdminFiles = () => {
             return;
         }
 
-        // El FileUploader se activará automáticamente
-        document.querySelector('input[type="file"]').click();
+        // Usar la referencia para abrir el selector de archivos
+        if (fileUploaderRef.current) {
+            fileUploaderRef.current.openFileSelector();
+        }
     };
 
     // Solo mostrar el selector de clientes y uploader si es admin
@@ -151,9 +156,12 @@ const AdminFiles = () => {
                 </div>
 
                 <div className="space-y-4">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">Subir Archivo (ZIP, RAR, 7Z, KMZ)</label>
                     <FileUploader
+                        ref={fileUploaderRef} // Añadimos la ref
                         onUploadSuccess={handleUploadSuccess}
                         clientId={selectedClient}
+                        accept=".zip,.rar,.7z,.kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml"
                     />
                     <button
                         onClick={handleSubmitUpload}

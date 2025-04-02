@@ -671,3 +671,15 @@ select:not(.tremor-Select-select) {
         z-index: 9999 !important;
     }
 }
+
+/* Estilos para Leaflet */
+.leaflet-container {
+    width: 100%;
+    height: 100%;
+}
+
+/* Asegurarse que los controles de Leaflet estén por encima de otros elementos pero no interfieran con otros elementos de la UI */
+.leaflet-top,
+.leaflet-bottom {
+    z-index: 400 !important;
+}

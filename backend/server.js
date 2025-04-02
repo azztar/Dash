@@ -10,6 +10,32 @@ const declarationRoutes = require("./routes/declarationRoutes");
 const userRoutes = require("./routes/userRoutes");
 const filesRoutes = require("./routes/fileRoutes");
 
+// Añadir al inicio del servidor para verificar permisos
+const fs = require("fs");
+const path = require("path");
+
+// Verificar y crear directorios necesarios
+const uploadsDir = path.join(__dirname, "uploads");
+const defaultDir = path.join(uploadsDir, "default");
+
+try {
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log("✅ Directorio uploads creado correctamente");
+    }
+
+    if (!fs.existsSync(defaultDir)) {
+        fs.mkdirSync(defaultDir, { recursive: true });
+        console.log("✅ Directorio uploads/default creado correctamente");
+    }
+
+    // Verificar permisos
+    fs.accessSync(uploadsDir, fs.constants.W_OK);
+    console.log("✅ Permisos de escritura confirmados en directorio uploads");
+} catch (error) {
+    console.error("❌ Error al verificar directorios o permisos:", error);
+}
+
 const app = express();
 
 app.use(cors());

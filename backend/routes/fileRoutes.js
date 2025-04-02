@@ -7,14 +7,6 @@ const mime = require("mime-types");
 const db = require("../config/database");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
-// Intenta cargar AdmZip solo si está disponible
-let AdmZip;
-try {
-    AdmZip = require("adm-zip");
-} catch (err) {
-    console.log("AdmZip no está instalado, no se usará para archivos ZIP");
-}
-
 // Asegurar que el directorio de uploads exista
 const ensureUploadDirExists = () => {
     const baseUploadDir = path.resolve(__dirname, "..", "uploads");
@@ -30,31 +22,51 @@ ensureUploadDirExists();
 // Configuración de multer optimizada para archivos binarios
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const clientId = req.body.clientId || "default";
-        const uploadDir = path.join(ensureUploadDirExists(), clientId);
+        try {
+            // Verificar si clientId existe y es válido
+            const clientId = req.body.id_cliente || (req.user ? req.user.id : "default");
 
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+            // Crear un directorio base seguro
+            const baseUploadDir = path.resolve(__dirname, "..", "uploads");
+            if (!fs.existsSync(baseUploadDir)) {
+                fs.mkdirSync(baseUploadDir, { recursive: true });
+            }
+
+            // Crear directorio específico para el cliente
+            const uploadDir = path.join(baseUploadDir, clientId.toString());
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error("Error al crear directorio de destino:", error);
+            // Usar directorio por defecto si hay error
+            const fallbackDir = path.resolve(__dirname, "..", "uploads", "default");
+            if (!fs.existsSync(fallbackDir)) {
+                fs.mkdirSync(fallbackDir, { recursive: true });
+            }
+            cb(null, fallbackDir);
         }
-        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         // Preservar extensión original
         const originalExt = path.extname(file.originalname);
-        const clientId = req.body.clientId || "default";
+        const clientId = req.body.id_cliente || (req.user ? req.user.id : "default");
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         cb(null, `${clientId}_${uniqueSuffix}${originalExt}`);
     },
 });
 
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = [".zip", ".rar", ".7z", ".tar", ".gz", ".tar.gz"];
+    // Añadir .kmz a los tipos permitidos
+    const allowedTypes = [".zip", ".rar", ".7z", ".tar", ".gz", ".tar.gz", ".kmz", ".kml"];
     const ext = path.extname(file.originalname).toLowerCase();
 
     if (allowedTypes.includes(ext)) {
         return cb(null, true);
     }
-    cb(new Error("Solo se permiten archivos comprimidos: ZIP, RAR, 7Z, TAR.GZ"));
+    cb(new Error("Solo se permiten archivos comprimidos: ZIP, RAR, 7Z, TAR.GZ, KMZ, KML"));
 };
 
 const upload = multer({
@@ -63,162 +75,196 @@ const upload = multer({
     fileFilter,
 });
 
-// RUTA SUBIDA
-router.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
+// Subida de archivos con mejor manejo de errores
+router.post(
+    "/upload",
+    authMiddleware,
+    (req, res, next) => {
+        console.log("Body recibido:", req.body);
+        upload.single("file")(req, res, (err) => {
+            if (err) {
+                console.error("Error en multer:", err);
+                return res.status(400).json({
+                    success: false,
+                    message: err.message || "Error al procesar el archivo",
+                });
+            }
+            next();
+        });
+    },
+    async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: "No se envió ningún archivo",
+                });
+            }
+
+            console.log("Archivo subido con éxito:", req.file);
+            console.log("Usuario:", req.user);
+            console.log("Body completo:", req.body);
+
+            // Información del archivo subido con validación adicional
+            const fileInfo = {
+                nombre_original: req.file.originalname || "archivo_sin_nombre",
+                nombre_archivo: req.file.filename || "archivo_sin_nombre",
+                ruta_archivo: req.file.path || "",
+                tipo_archivo: path.extname(req.file.originalname || "").toLowerCase(),
+                tamano: req.file.size || 0,
+                id_usuario: req.user?.id || 0,
+                id_cliente: req.user?.rol === "cliente" ? req.user.id : req.body?.id_cliente || null,
+                id_estacion: req.body?.id_estacion || null,
+            };
+
+            // Validación adicional antes de insertar en la BD
+            if (!fileInfo.nombre_original || !fileInfo.nombre_archivo || !fileInfo.ruta_archivo) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Información del archivo incompleta",
+                });
+            }
+
+            // Guardar en la base de datos con try-catch específico
+            try {
+                const [result] = await db.query(
+                    `INSERT INTO archivos 
+                    (nombre_original, nombre_archivo, ruta_archivo, tipo_archivo, tamano, id_usuario, id_cliente, id_estacion) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        fileInfo.nombre_original,
+                        fileInfo.nombre_archivo,
+                        fileInfo.ruta_archivo,
+                        fileInfo.tipo_archivo,
+                        fileInfo.tamano,
+                        fileInfo.id_usuario,
+                        fileInfo.id_cliente,
+                        fileInfo.id_estacion,
+                    ],
+                );
+
+                console.log("Archivo guardado en la base de datos con ID:", result.insertId);
+
+                res.status(201).json({
+                    success: true,
+                    message: "Archivo subido correctamente",
+                    fileId: result.insertId,
+                });
+            } catch (dbError) {
+                console.error("Error específico de la base de datos:", dbError);
+                res.status(500).json({
+                    success: false,
+                    message: "Error al guardar en la base de datos: " + (dbError.message || "Error desconocido"),
+                });
+            }
+        } catch (error) {
+            console.error("Error general en el controlador:", error);
+            res.status(500).json({
+                success: false,
+                message: error.message || "Error al subir el archivo",
+            });
+        }
+    },
+);
+
+// Modificar el middleware de autenticación para que también acepte tokens en la consulta
+const customAuthMiddleware = async (req, res, next) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({
-                success: false,
-                message: "No se ha subido ningún archivo",
-            });
+        // Primero verificar si hay token en el header
+        const authHeader = req.headers.authorization;
+
+        // Si no hay header, verificar si hay token en query params (para descargas)
+        if (!authHeader && req.query.token) {
+            req.headers.authorization = `Bearer ${req.query.token}`;
         }
 
-        const file = req.file;
-        // Verificar que el usuario esté disponible
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({
-                success: false,
-                message: "Usuario no autenticado o identificado correctamente",
-            });
-        }
-
-        const userId = req.user.id;
-        const { clientId, stationId } = req.body;
-
-        console.log("📤 Archivo subido:", {
-            originalname: file.originalname,
-            filename: file.filename,
-            path: file.path,
-            mimetype: file.mimetype,
-            extension: path.extname(file.originalname),
-            tamaño: file.size,
-            userId: userId, // Mostrar ID de usuario para debug
-        });
-
-        // Guardar en BD con ruta absoluta para Windows
-        const filePath = path.resolve(file.path).replace(/\\/g, "\\\\");
-
-        const [result] = await db.query(
-            `INSERT INTO archivos 
-             (nombre_original, nombre_archivo, ruta_archivo, tipo_archivo, 
-              tamano, id_usuario, id_cliente, id_estacion) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                file.originalname,
-                file.filename,
-                filePath,
-                path.extname(file.originalname),
-                file.size,
-                userId, // Asegurar que esto no sea null
-                clientId || null,
-                stationId || null,
-            ],
-        );
-
-        res.json({
-            success: true,
-            message: "Archivo subido correctamente",
-            fileId: result.insertId,
-            file: {
-                nombre: file.originalname,
-                tipo: path.extname(file.originalname),
-            },
-        });
+        // Continuar con el middleware normal de autenticación
+        await authMiddleware(req, res, next);
     } catch (error) {
-        console.error("Error al subir archivo:", error);
-        res.status(500).json({
-            success: false,
-            message: error.message || "Error al subir el archivo",
-        });
+        return res.status(401).json({ message: "No autorizado" });
     }
-});
+};
 
-// RUTA DESCARGA
-router.get("/download/:fileId", authMiddleware, async (req, res) => {
+// Completar la función de descarga de archivos
+router.get("/download/:id", authMiddleware, async (req, res) => {
     try {
-        const { fileId } = req.params;
-        const userId = req.user.id;
-        const isAdmin = req.user.rol === "administrador";
+        const fileId = req.params.id;
+        console.log(`Petición de descarga para archivo ID: ${fileId}`);
 
-        // Obtener información del archivo
-        const [files] = await db.query(
-            `SELECT a.* FROM archivos a 
-             WHERE a.id_archivo = ? AND (a.id_cliente = ? OR a.id_usuario = ? OR ?)`,
-            [fileId, userId, userId, isAdmin],
-        );
+        // Obtener información del archivo desde la base de datos
+        const [files] = await db.query("SELECT * FROM archivos WHERE id_archivo = ?", [fileId]);
 
         if (files.length === 0) {
+            console.log(`Archivo ID ${fileId} no encontrado en la base de datos`);
             return res.status(404).json({
                 success: false,
-                message: "Archivo no encontrado o sin permisos",
+                message: "Archivo no encontrado",
             });
         }
 
         const file = files[0];
-        const filePath = file.ruta_archivo;
-        const originalName = file.nombre_original;
+        console.log(`Archivo encontrado en BD: ${file.nombre_original}, ruta: ${file.ruta_archivo}`);
 
-        // Verificar existencia física del archivo
-        if (!fs.existsSync(filePath)) {
+        // Verificar permisos (si el usuario puede acceder a este archivo)
+        if (req.user.rol !== "administrador" && req.user.rol !== "empleado" && req.user.id !== file.id_cliente) {
+            console.log(`Usuario ${req.user.id} (${req.user.rol}) no tiene permiso para el archivo de cliente ${file.id_cliente}`);
+            return res.status(403).json({
+                success: false,
+                message: "No tienes permiso para acceder a este archivo",
+            });
+        }
+
+        // Intentar diferentes rutas para encontrar el archivo
+        const possiblePaths = [
+            file.ruta_archivo, // Ruta tal como está en la base de datos
+            path.join(__dirname, "..", file.ruta_archivo), // Ruta relativa desde directorio de rutas
+            path.join(__dirname, "..", "..", file.ruta_archivo), // Un nivel más arriba
+            path.join(__dirname, "..", "uploads", path.basename(file.ruta_archivo)), // En carpeta uploads general
+            path.join(__dirname, "..", "uploads", String(file.id_cliente), path.basename(file.ruta_archivo)), // En carpeta del cliente
+        ];
+
+        // Buscar el archivo en las posibles rutas
+        let filePath = null;
+        for (const possiblePath of possiblePaths) {
+            try {
+                if (fs.existsSync(possiblePath)) {
+                    filePath = possiblePath;
+                    console.log(`Archivo encontrado en ruta: ${filePath}`);
+                    break;
+                }
+            } catch (err) {
+                console.log(`Error al verificar ruta ${possiblePath}: ${err.message}`);
+            }
+        }
+
+        // Si no se encuentra el archivo en ninguna ruta
+        if (!filePath) {
+            console.log("No se encontró el archivo físico en ninguna ruta posible");
             return res.status(404).json({
                 success: false,
                 message: "El archivo físico no se encuentra en el servidor",
             });
         }
 
-        // Mapeo explícito y más específico de extensiones a MIME types
-        const mimeTypes = {
-            ".zip": "application/zip",
-            ".rar": "application/x-rar-compressed", // Cambiado para mayor compatibilidad
-            ".7z": "application/x-7z-compressed",
-            ".tar": "application/x-tar",
-            ".gz": "application/gzip",
-            ".tar.gz": "application/x-gtar",
-        };
+        // Establecer cabeceras según el tipo de archivo
+        const ext = path.extname(file.nombre_original).toLowerCase();
 
-        const extension = path.extname(originalName).toLowerCase();
-        const mimeType = mimeTypes[extension] || "application/octet-stream";
-
-        console.log("📥 Descargando archivo:", {
-            id: file.id_archivo,
-            nombre: originalName,
-            extension: extension,
-            mimetype: mimeType,
-        });
-
-        // Enfoque directo: enviar el archivo con res.download() de Express
-        // Este método maneja automáticamente las cabeceras y el streaming
-        return res.download(
-            filePath,
-            originalName,
-            {
-                headers: {
-                    "Content-Type": mimeType,
-                    "Content-Transfer-Encoding": "binary",
-                    "Content-Disposition": `attachment; filename="${encodeURIComponent(originalName)}"`,
-                },
-            },
-            (err) => {
-                if (err) {
-                    console.error("Error en la descarga:", err);
-                    // Solo enviar error si no se ha enviado ya una respuesta
-                    if (!res.headersSent) {
-                        return res.status(500).json({
-                            success: false,
-                            message: "Error al descargar el archivo",
-                        });
-                    }
-                }
-            },
-        );
-    } catch (error) {
-        console.error("Error al descargar archivo:", error);
-        if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                message: error.message || "Error al descargar el archivo",
-            });
+        if (ext === ".kmz") {
+            res.setHeader("Content-Type", "application/vnd.google-earth.kmz");
+        } else if (ext === ".kml") {
+            res.setHeader("Content-Type", "application/vnd.google-earth.kml+xml");
         }
+
+        // Enviar el archivo como descarga
+        console.log(`Enviando archivo: ${filePath}`);
+        return res.download(filePath, file.nombre_original);
+    } catch (error) {
+        console.error(`Error al descargar archivo:`, error);
+        return res.status(500).json({
+            success: false,
+            message: "Error al descargar el archivo",
+            error: error.message,
+        });
     }
 });
 

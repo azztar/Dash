@@ -48,6 +48,12 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+// Añadir esta importación junto con las demás al inicio del archivo
+import KmzMapViewerSection from "@/components/dashboard/KmzMapViewerSection";
+
+// Por estas importaciones correctas de Tremor:
+import { Card, Title, Text } from "@tremor/react";
+
 // Mapa de colores para los diferentes parámetros
 const COLORS_MAP = {
     PM10: "#ef4444",
@@ -416,35 +422,36 @@ const DashboardPage = () => {
                                     <ChevronRight size={20} />
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </>
-            );
-        } else {
-            // Versión simplificada sin datos disponibles
-            return (
-                <>
-                    <div className="card col-span-1 lg:col-span-3">
-                        <div className="card-header">
-                            <div className="w-fit rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <Wind size={26} />
-                            </div>
-                            <p className="card-title">Calidad del aire</p>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <div className="flex items-center">
-                                <p className="text-xl font-bold text-slate-900 transition-colors dark:text-slate-50">No hay mediciones disponibles</p>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-medium">Archivos KMZ</h2>
                                 <button
-                                    className="ml-auto rounded-md bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
-                                    onClick={() => navigate("/aire")}
+                                    onClick={refreshFilesList}
+                                    className="rounded-full bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
+                                    title="Actualizar listado"
                                 >
-                                    Ver datos
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-5 w-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                        />
+                                    </svg>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </>
             );
+        } else {
+            // Versión simplificada sin datos disponibles
+            return <></>;
         }
     };
 
@@ -560,6 +567,21 @@ const DashboardPage = () => {
 
     const [activeTab, setActiveTab] = useState("maximum");
 
+    const refreshFilesList = async () => {
+        try {
+            toast.info("Actualizando listado de archivos...");
+            const response = await axios.get(`${API_URL}/api/files/list`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setFiles(response.data.files || []);
+            toast.success("Listado actualizado");
+        } catch (error) {
+            console.error("Error al actualizar archivos:", error);
+            toast.error("No se pudo actualizar el listado de archivos");
+        }
+    };
+
     return (
         <div className="flex flex-col gap-y-4 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">Dashboard</h1>
@@ -618,268 +640,17 @@ const DashboardPage = () => {
                 {renderIndicatorCards()}
             </div>
 
-            {/* Gráficos principales */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Gráfica de barras */}
-                <div className="card">
-                    <div className="card-header">
-                        <p className="card-title">Tendencias de Calidad del Aire</p>
+            {/* Nueva sección para visualización de KMZ */}
+            <div className="mb-6">
+                <Card>
+                    <div className="border-b border-gray-200 p-4 dark:border-gray-700">
+                        <Title className="text-xl font-bold">Visualizador Geográfico</Title>
+                        <Text className="text-gray-500 dark:text-gray-400">Consulta los archivos KMZ de estaciones y puntos de medición</Text>
                     </div>
-                    <div className="card-body p-0">
-                        {measurements.length > 0 ? (
-                            <ResponsiveContainer
-                                width="100%"
-                                height={250}
-                            >
-                                <BarChart
-                                    data={isMobile ? prepareChartData().filter((_, i) => i % 2 === 0) : prepareChartData()}
-                                    margin={{ top: 20, right: 30, left: 20, bottom: isMobile ? 50 : 40 }}
-                                    className="corporate-chart"
-                                >
-                                    <defs>
-                                        <linearGradient
-                                            id="colorValor"
-                                            x1="0"
-                                            y1="0"
-                                            x2="0"
-                                            y2="1"
-                                        >
-                                            <stop
-                                                offset="5%"
-                                                stopColor="#3b82f6"
-                                                stopOpacity={0.8}
-                                            />
-                                            <stop
-                                                offset="95%"
-                                                stopColor="#3b82f6"
-                                                stopOpacity={0.2}
-                                            />
-                                        </linearGradient>
-                                        <linearGradient
-                                            id="colorLimite"
-                                            x1="0"
-                                            y1="0"
-                                            x2="0"
-                                            y2="1"
-                                        >
-                                            <stop
-                                                offset="5%"
-                                                stopColor="#ef4444"
-                                                stopOpacity={0.8}
-                                            />
-                                            <stop
-                                                offset="95%"
-                                                stopColor="#ef4444"
-                                                stopOpacity={0.2}
-                                            />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid
-                                        strokeDasharray="3 3"
-                                        stroke={theme === "light" ? "#e2e8f0" : "#334155"}
-                                    />
-                                    <XAxis
-                                        dataKey="name"
-                                        strokeWidth={0}
-                                        stroke={theme === "light" ? "#475569" : "#94a3b8"}
-                                        tickMargin={6}
-                                        angle={isMobile ? -45 : 0}
-                                        height={isMobile ? 60 : 30}
-                                        textAnchor={isMobile ? "end" : "middle"}
-                                        tick={{ fontSize: isMobile ? 10 : 12 }}
-                                    />
-                                    <YAxis
-                                        strokeWidth={0}
-                                        stroke={theme === "light" ? "#475569" : "#94a3b8"}
-                                        tickMargin={6}
-                                        width={isMobile ? 35 : 45}
-                                        tickCount={isMobile ? 4 : 6}
-                                    />
-                                    <Tooltip
-                                        cursor={{ strokeDasharray: "3 3" }}
-                                        contentStyle={{
-                                            backgroundColor: theme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(30, 41, 59, 0.95)",
-                                            borderRadius: "8px",
-                                            border: theme === "light" ? "1px solid #e2e8f0" : "1px solid #334155",
-                                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                                            padding: "10px 14px",
-                                        }}
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ paddingTop: "10px" }}
-                                        iconType="circle"
-                                    />
-                                    <Bar
-                                        dataKey="Valor"
-                                        name="Concentración"
-                                        fill="url(#colorValor)"
-                                        isAnimationActive={false}
-                                        radius={[4, 4, 0, 0]}
-                                        shape={(props) => {
-                                            // Extraer propiedades
-                                            const { x, y, width, height, fill, radius, index, payload } = props;
-
-                                            // Crear clave única con más información para evitar colisiones
-                                            const uniqueKey = `valor-${index}-${payload?.name}-${Math.random().toString(36).substring(2, 9)}`;
-
-                                            return (
-                                                <rect
-                                                    key={uniqueKey}
-                                                    x={x}
-                                                    y={y}
-                                                    width={width}
-                                                    height={height}
-                                                    fill={fill}
-                                                    rx={(radius && radius[0]) || 0}
-                                                    ry={(radius && radius[0]) || 0}
-                                                />
-                                            );
-                                        }}
-                                    />
-
-                                    <Bar
-                                        dataKey="Límite"
-                                        name="Límite Permitido"
-                                        fill="url(#colorLimite)"
-                                        isAnimationActive={false}
-                                        radius={[4, 4, 0, 0]}
-                                        shape={(props) => {
-                                            // Extraer propiedades
-                                            const { x, y, width, height, fill, radius, index, payload } = props;
-
-                                            // Crear clave única con más información para evitar colisiones
-                                            const uniqueKey = `limite-${index}-${payload?.name}-${Math.random().toString(36).substring(2, 9)}`;
-
-                                            return (
-                                                <rect
-                                                    key={uniqueKey}
-                                                    x={x}
-                                                    y={y}
-                                                    width={width}
-                                                    height={height}
-                                                    fill={fill}
-                                                    rx={(radius && radius[0]) || 0}
-                                                    ry={(radius && radius[0]) || 0}
-                                                />
-                                            );
-                                        }}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="flex h-[250px] items-center justify-center">
-                                <p className="text-gray-500">No hay suficientes datos para mostrar tendencias</p>
-                            </div>
-                        )}
+                    <div className="p-4">
+                        <KmzMapViewerSection />
                     </div>
-                </div>
-
-                {/* Gráfica de pastel */}
-                <div className="card">
-                    <div className="card-header">
-                        <p className="card-title">Distribución de Contaminantes</p>
-                    </div>
-                    <div className="card-body h-[250px] p-0">
-                        {prepareParametersData().length > 0 ? (
-                            <ResponsiveContainer
-                                width="100%"
-                                height="100%"
-                            >
-                                <PieChart>
-                                    <defs>
-                                        {COLORS.map((color, index) => (
-                                            <linearGradient
-                                                key={`gradient-${index}`}
-                                                id={`colorGradient-${index}`}
-                                                x1="0"
-                                                y1="0"
-                                                x2="0"
-                                                y2="1"
-                                            >
-                                                <stop
-                                                    offset="0%"
-                                                    stopColor={color}
-                                                    stopOpacity={1}
-                                                />
-                                                <stop
-                                                    offset="100%"
-                                                    stopColor={lightenColor(color)}
-                                                    stopOpacity={0.8}
-                                                />
-                                            </linearGradient>
-                                        ))}
-                                    </defs>
-                                    <Pie
-                                        data={prepareParametersData()}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        label={({ name, percentage }) => `${name}: ${percentage}%`}
-                                        outerRadius={isMobile ? 70 : 90}
-                                        innerRadius={isMobile ? 40 : 60}
-                                        fill="#8884d8"
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                    >
-                                        {prepareParametersData().map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${entry.name}`}
-                                                fill={`url(#colorGradient-${index % COLORS.length})`}
-                                                stroke={theme === "light" ? "#fff" : "#1e293b"}
-                                                strokeWidth={2}
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(value, name, props) => {
-                                            const item = props.payload;
-                                            return [
-                                                <div className="corporate-tooltip">
-                                                    <div
-                                                        className="tooltip-header"
-                                                        style={{ fontWeight: "bold", marginBottom: "5px" }}
-                                                    >
-                                                        {item.name}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Porcentaje:</strong> {item.percentage}%
-                                                    </div>
-                                                    <div>
-                                                        <strong>Valor promedio:</strong> {item.avg} {item.unit}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Máximo:</strong> {item.max} {item.unit}
-                                                    </div>
-                                                </div>,
-                                                null,
-                                            ];
-                                        }}
-                                        contentStyle={{
-                                            backgroundColor: theme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(30, 41, 59, 0.95)",
-                                            borderRadius: "8px",
-                                            border: theme === "light" ? "1px solid #e2e8f0" : "1px solid #334155",
-                                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                                        }}
-                                    />
-                                    <Legend
-                                        layout="horizontal"
-                                        verticalAlign="bottom"
-                                        align="center"
-                                        formatter={(value, entry) => (
-                                            <span style={{ color: theme === "light" ? "#334155" : "#94a3b8" }}>
-                                                {value} ({prepareParametersData().find((i) => i.name === value)?.percentage}%)
-                                            </span>
-                                        )}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="flex h-full items-center justify-center">
-                                <p className="text-gray-500">No hay datos de distribución disponibles</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                </Card>
             </div>
 
             <div className="card mt-4">
