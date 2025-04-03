@@ -217,26 +217,31 @@ const DashboardPage = () => {
         return parseFloat(strValue.replace(",", "."));
     }
 
-    // Función para obtener las mediciones máximas agrupadas por parámetro
+    // Función modificada para obtener las mediciones máximas agrupadas por parámetro
     const getMaxMeasurementsByParameter = () => {
-        if (measurements.length === 0) return [];
+        // Lista de los 6 parámetros principales de calidad del aire
+        const mainParameters = ["PM10", "SO2", "PM2.5", "NO2", "CO", "O3"];
 
-        // Agrupar mediciones por parámetro
-        const groupedByParam = {};
+        // Crear objeto para almacenar resultados
+        const results = {};
 
-        measurements.forEach((m) => {
-            // Si el parámetro no existe en el grupo, inicializarlo
-            if (!groupedByParam[m.parametro]) {
-                groupedByParam[m.parametro] = [];
-            }
+        // Si hay mediciones disponibles, procesarlas
+        if (measurements.length > 0) {
+            // Agrupar mediciones por parámetro
+            const groupedByParam = {};
 
-            // Añadir la medición al grupo correspondiente
-            groupedByParam[m.parametro].push(m);
-        });
+            measurements.forEach((m) => {
+                // Si el parámetro no existe en el grupo, inicializarlo
+                if (!groupedByParam[m.parametro]) {
+                    groupedByParam[m.parametro] = [];
+                }
 
-        // Encontrar el máximo de cada parámetro
-        return Object.keys(groupedByParam)
-            .map((param) => {
+                // Añadir la medición al grupo correspondiente
+                groupedByParam[m.parametro].push(m);
+            });
+
+            // Encontrar el máximo de cada parámetro disponible
+            Object.keys(groupedByParam).forEach((param) => {
                 const paramMeasurements = groupedByParam[param];
 
                 // Encontrar la medición con la concentración más alta
@@ -244,55 +249,114 @@ const DashboardPage = () => {
                     return parseNumberWithLocale(current.concentracion) > parseNumberWithLocale(max.concentracion) ? current : max;
                 }, paramMeasurements[0]);
 
-                return {
+                results[param] = {
                     parametro: param,
                     concentracion: maxMeasurement.concentracion,
                     fecha: maxMeasurement.fecha_muestra,
                     unidad: maxMeasurement.unidad || "µg/m³",
-                    limite: maxMeasurement.valor_limite,
+                    limite: maxMeasurement.valor_limite || getDefaultLimit(param),
                     estacion: maxMeasurement.id_estacion,
                     periodo: maxMeasurement.fecha_inicio_muestra,
+                    hasData: true,
                 };
-            })
-            .sort((a, b) => {
-                // Ordenar por porcentaje respecto al límite (descendente)
-                const percentA = parseNumberWithLocale(a.concentracion) / a.limite;
-                const percentB = parseNumberWithLocale(b.concentracion) / b.limite;
-                return percentB - percentA;
             });
-    };
+        }
 
-    // Preparar datos para gráfico de evolución histórica
-    const prepareHistoricalData = () => {
-        if (measurements.length === 0) return [];
-
-        // Agrupar mediciones por fecha
-        const groupedByDate = {};
-        measurements.forEach((m) => {
-            const fechaStr = new Date(m.fecha_muestra).toLocaleDateString();
-
-            if (!groupedByDate[fechaStr]) {
-                groupedByDate[fechaStr] = {
-                    fecha: fechaStr,
-                    SO2: null,
-                    PM10: null,
+        // Asegurarse de que los 6 parámetros principales estén incluidos
+        mainParameters.forEach((param) => {
+            if (!results[param]) {
+                // Si no hay datos para este parámetro, crear entrada con valores por defecto
+                results[param] = {
+                    parametro: param,
+                    concentracion: "0",
+                    fecha: new Date().toISOString(),
+                    unidad: "µg/m³",
+                    limite: getDefaultLimit(param),
+                    estacion: "N/A",
+                    periodo: "",
+                    hasData: false,
                 };
-            }
-
-            // Guardar valor máximo para cada parámetro por fecha
-            if (m.parametro === "SO2") {
-                const valor = parseNumberWithLocale(m.concentracion);
-                groupedByDate[fechaStr].SO2 = Math.max(groupedByDate[fechaStr].SO2 || 0, valor);
-            } else if (m.parametro === "PM10") {
-                const valor = parseNumberWithLocale(m.concentracion);
-                groupedByDate[fechaStr].PM10 = Math.max(groupedByDate[fechaStr].PM10 || 0, valor);
             }
         });
 
-        // Convertir a array y ordenar por fecha
-        return Object.values(groupedByDate)
-            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-            .slice(0, 10); // Mostrar solo las 10 fechas más recientes
+        // Convertir a array y ordenar
+        return Object.values(results).sort((a, b) => {
+            if (!a.hasData && !b.hasData) return 0; // Ambos sin datos
+            if (!a.hasData) return 1; // a va después
+            if (!b.hasData) return -1; // b va después
+
+            // Ordenar por porcentaje respecto al límite (descendente)
+            const percentA = parseNumberWithLocale(a.concentracion) / a.limite;
+            const percentB = parseNumberWithLocale(b.concentracion) / b.limite;
+            return percentB - percentA;
+        });
+    };
+
+    // Función auxiliar para obtener límites por defecto de cada parámetro
+    const getDefaultLimit = (param) => {
+        // Valores de referencia según estándares de calidad del aire
+        const defaultLimits = {
+            PM10: 50,
+            SO2: 350,
+            "PM2.5": 25,
+            NO2: 200,
+            CO: 10000,
+            O3: 120,
+        };
+
+        return defaultLimits[param] || 100;
+    };
+
+    // Primero, añade un estado para el parámetro seleccionado
+    const [selectedParameter, setSelectedParameter] = useState(""); // Parámetro seleccionado para el gráfico histórico
+
+    // Añadir este estado
+    const [topMeasurementsLimit, setTopMeasurementsLimit] = useState(10);
+
+    // Modificar esta función para mostrar solo las mediciones más altas
+    const prepareHistoricalData = () => {
+        if (measurements.length === 0) return [];
+
+        // Si no hay parámetro seleccionado, mostrar mensaje o datos vacíos
+        if (!selectedParameter) {
+            return [];
+        }
+
+        // Filtrar mediciones por el parámetro seleccionado
+        const filteredMeasurements = measurements.filter((m) => m.parametro === selectedParameter);
+
+        // Número de mediciones más altas a mostrar
+        const topMeasurementsCount = topMeasurementsLimit; // Puedes ajustar este número según necesites
+
+        // Ordenar todas las mediciones por concentración (de mayor a menor)
+        const sortedMeasurements = [...filteredMeasurements].sort((a, b) => {
+            return parseNumberWithLocale(b.concentracion) - parseNumberWithLocale(a.concentracion);
+        });
+
+        // Usar el límite seleccionado por el usuario
+        const topMeasurements = sortedMeasurements.slice(0, topMeasurementsLimit);
+
+        // Convertir a formato para el gráfico y ordenar por fecha para mantener cronología
+        return topMeasurements
+            .map((m) => ({
+                fecha: new Date(m.fecha_muestra).toLocaleDateString(),
+                valor: parseNumberWithLocale(m.concentracion),
+                unidad: m.unidad || "µg/m³",
+                estacion: m.id_estacion,
+            }))
+            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    };
+
+    // Obtener la lista de parámetros disponibles
+    const getAvailableParameters = () => {
+        if (measurements.length === 0) return [];
+
+        const paramSet = new Set();
+        measurements.forEach((m) => {
+            if (m.parametro) paramSet.add(m.parametro);
+        });
+
+        return Array.from(paramSet);
     };
 
     const [activeTab, setActiveTab] = useState("maximum");
@@ -390,55 +454,99 @@ const DashboardPage = () => {
                                 </div>
                                 <div className="overflow-hidden">
                                     {getMaxMeasurementsByParameter().length > 0 ? (
-                                        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                             {getMaxMeasurementsByParameter().map((item, index) => {
+                                                // Si no hay datos, mostrar formato especial
+                                                if (!item.hasData) {
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className="rounded-lg border border-slate-200 p-4 transition-shadow hover:shadow-md dark:border-slate-700"
+                                                        >
+                                                            <div className="flex flex-col">
+                                                                <div className="mb-3 flex items-center justify-between">
+                                                                    <div className="flex items-center">
+                                                                        <div className="mr-3 rounded-md bg-gray-100 p-2 text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                                                                            <AlertCircle size={18} />
+                                                                        </div>
+                                                                        <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                            {item.parametro}
+                                                                        </h3>
+                                                                    </div>
+                                                                    <span className="text-xs font-medium text-gray-500">N/A</span>
+                                                                </div>
+                                                                <div className="mt-1">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="text-sm text-slate-500">No hay datos disponibles</p>
+                                                                        <p className="text-lg font-bold text-gray-400">
+                                                                            --
+                                                                            <span className="ml-1 text-xs font-normal text-slate-500">
+                                                                                {item.unidad}
+                                                                            </span>
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="mt-2 w-full rounded-full bg-slate-200 dark:bg-slate-700">
+                                                                        <div
+                                                                            className="h-1.5 rounded-full bg-gray-300 dark:bg-gray-600"
+                                                                            style={{ width: "0%" }}
+                                                                        ></div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                // Para mediciones con datos existentes
                                                 const percent = Math.round((parseNumberWithLocale(item.concentracion) / item.limite) * 100);
                                                 const isHigh = percent > 80;
 
                                                 return (
                                                     <div
                                                         key={index}
-                                                        className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                                        className="rounded-lg border border-slate-200 p-4 transition-shadow hover:shadow-md dark:border-slate-700"
                                                     >
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center">
-                                                                <div
-                                                                    className={`mr-3 rounded-md p-2 ${
+                                                        <div className="flex flex-col">
+                                                            <div className="mb-3 flex items-center justify-between">
+                                                                <div className="flex items-center">
+                                                                    <div
+                                                                        className={`mr-3 rounded-md p-2 ${
+                                                                            isHigh
+                                                                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                                                                : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                                        }`}
+                                                                    >
+                                                                        {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+                                                                    </div>
+                                                                    <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                        {item.parametro}
+                                                                    </h3>
+                                                                </div>
+                                                                <span
+                                                                    className={`text-xs font-medium ${
                                                                         isHigh
-                                                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                                            ? "text-amber-800 dark:text-amber-400"
+                                                                            : "text-green-800 dark:text-green-400"
                                                                     }`}
                                                                 >
-                                                                    {isHigh ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-medium text-slate-900 dark:text-slate-100">{item.parametro}</p>
+                                                                    {percent}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-1">
+                                                                <div className="flex items-center justify-between">
                                                                     <p className="text-sm text-slate-500">
                                                                         {new Date(item.fecha).toLocaleDateString()}
                                                                     </p>
+                                                                    <p className="text-lg font-bold">
+                                                                        {parseNumberWithLocale(item.concentracion).toFixed(2)}
+                                                                        <span className="ml-1 text-xs font-normal text-slate-500">{item.unidad}</span>
+                                                                    </p>
                                                                 </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-lg font-bold">
-                                                                    {parseNumberWithLocale(item.concentracion).toFixed(2)}
-                                                                    <span className="ml-1 text-xs font-normal text-slate-500">{item.unidad}</span>
-                                                                </p>
-                                                                <div className="mt-1 flex items-center gap-2">
-                                                                    <div className="h-1.5 w-16 rounded-full bg-slate-200 dark:bg-slate-700">
-                                                                        <div
-                                                                            className={`h-full rounded-full ${isHigh ? "bg-amber-500" : "bg-green-500"}`}
-                                                                            style={{ width: `${Math.min(100, percent)}%` }}
-                                                                        ></div>
-                                                                    </div>
-                                                                    <span
-                                                                        className={`text-xs font-medium ${
-                                                                            isHigh
-                                                                                ? "text-amber-800 dark:text-amber-400"
-                                                                                : "text-green-800 dark:text-green-400"
-                                                                        }`}
-                                                                    >
-                                                                        {percent}%
-                                                                    </span>
+                                                                <div className="mt-2 w-full rounded-full bg-slate-200 dark:bg-slate-700">
+                                                                    <div
+                                                                        className={`h-1.5 rounded-full ${isHigh ? "bg-amber-500" : "bg-green-500"}`}
+                                                                        style={{ width: `${Math.min(100, percent)}%` }}
+                                                                    ></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -458,10 +566,66 @@ const DashboardPage = () => {
                         <div className="h-[400px]">
                             <div className="card mt-4">
                                 <div className="card-header">
-                                    <p className="card-title">Evolución Histórica por Parámetro</p>
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="card-title">Evolución Histórica por Parámetro</p>
+
+                                        {/* Selector de parámetros - optimizado para móvil */}
+                                        <div className="flex flex-col gap-4 sm:flex-row">
+                                            <div className="flex items-center">
+                                                <label
+                                                    htmlFor="parameter-select"
+                                                    className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                                                >
+                                                    Parámetro:
+                                                </label>
+                                                <select
+                                                    id="parameter-select"
+                                                    value={selectedParameter}
+                                                    onChange={(e) => setSelectedParameter(e.target.value)}
+                                                    className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:w-auto"
+                                                >
+                                                    <option value="">Seleccionar parámetro</option>
+                                                    {getAvailableParameters().map((param) => (
+                                                        <option
+                                                            key={param}
+                                                            value={param}
+                                                        >
+                                                            {param}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {selectedParameter && (
+                                                <div className="hidden items-center sm:flex">
+                                                    <label
+                                                        htmlFor="limit-select"
+                                                        className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                                                    >
+                                                        Mostrar top:
+                                                    </label>
+                                                    <select
+                                                        id="limit-select"
+                                                        value={topMeasurementsLimit}
+                                                        onChange={(e) => setTopMeasurementsLimit(parseInt(e.target.value))}
+                                                        className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:w-auto"
+                                                    >
+                                                        <option value="5">5 más altas</option>
+                                                        <option value="10">10 más altas</option>
+                                                        <option value="15">15 más altas</option>
+                                                        <option value="30">30 más altas</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="card-body p-0">
-                                    {prepareHistoricalData().length > 0 ? (
+                                    {!selectedParameter ? (
+                                        <div className="flex h-[200px] items-center justify-center">
+                                            <p className="text-gray-500">Seleccione un parámetro para ver su evolución histórica</p>
+                                        </div>
+                                    ) : prepareHistoricalData().length > 0 ? (
                                         <div
                                             className="w-full"
                                             style={{ height: isMobile ? "300px" : "min(70vh, 400px)" }}
@@ -472,7 +636,7 @@ const DashboardPage = () => {
                                             >
                                                 <LineChart
                                                     data={isMobile ? prepareHistoricalData().filter((_, i) => i % 3 === 0) : prepareHistoricalData()}
-                                                    margin={{ top: 20, right: 10, bottom: 40, left: 10 }}
+                                                    margin={{ top: 20, right: 30, bottom: 40, left: 20 }}
                                                 >
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis
@@ -488,6 +652,10 @@ const DashboardPage = () => {
                                                         tickCount={isMobile ? 3 : 5}
                                                     />
                                                     <Tooltip
+                                                        formatter={(value) => [
+                                                            `${value} ${prepareHistoricalData()[0]?.unidad || "µg/m³"}`,
+                                                            selectedParameter,
+                                                        ]}
                                                         cursor={{ strokeDasharray: "3 3" }}
                                                         wrapperStyle={{
                                                             backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -499,44 +667,37 @@ const DashboardPage = () => {
                                                     />
                                                     <Legend />
                                                     <Line
+                                                        name={selectedParameter}
                                                         type="monotone"
-                                                        dataKey="SO2"
-                                                        stroke="#3b82f6"
+                                                        dataKey="valor"
+                                                        stroke={COLORS_MAP[selectedParameter] || "#3b82f6"}
                                                         strokeWidth={2}
-                                                        dot={{ r: 3 }}
-                                                        activeDot={{ r: 6 }}
+                                                        dot={{ r: 4 }}
+                                                        activeDot={{ r: 7 }}
                                                     />
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey="PM10"
-                                                        stroke="#ef4444"
-                                                        strokeWidth={2}
-                                                        dot={{ r: 3 }}
-                                                        activeDot={{ r: 6 }}
-                                                    />
-                                                    {parametersLimits &&
-                                                        Object.entries(parametersLimits).map(([param, { limit, unit }]) => (
-                                                            <ReferenceLine
-                                                                key={`limit-${param}`}
-                                                                y={limit}
-                                                                stroke={COLORS_MAP[param] || "#ef4444"}
-                                                                strokeDasharray="3 3"
-                                                                label={{
-                                                                    position: "top",
-                                                                    value: `Límite ${param}`,
-                                                                    fill:
-                                                                        theme === "light"
-                                                                            ? COLORS_MAP[param]
-                                                                            : lightenColor(COLORS_MAP[param] || "#ef4444"),
-                                                                }}
-                                                            />
-                                                        ))}
+
+                                                    {/* Mostrar línea de límite si existe para el parámetro seleccionado */}
+                                                    {parametersLimits && parametersLimits[selectedParameter] && (
+                                                        <ReferenceLine
+                                                            y={parametersLimits[selectedParameter].limit}
+                                                            stroke={COLORS_MAP[selectedParameter] || "#ef4444"}
+                                                            strokeDasharray="3 3"
+                                                            label={{
+                                                                position: "top",
+                                                                value: `Límite ${selectedParameter}`,
+                                                                fill:
+                                                                    theme === "light"
+                                                                        ? COLORS_MAP[selectedParameter]
+                                                                        : lightenColor(COLORS_MAP[selectedParameter] || "#ef4444"),
+                                                            }}
+                                                        />
+                                                    )}
                                                 </LineChart>
                                             </ResponsiveContainer>
                                         </div>
                                     ) : (
                                         <div className="flex h-[200px] items-center justify-center">
-                                            <p className="text-gray-500">No hay suficientes datos históricos para este cliente</p>
+                                            <p className="text-gray-500">No hay suficientes datos históricos para {selectedParameter}</p>
                                         </div>
                                     )}
                                 </div>
