@@ -236,9 +236,31 @@ const AirePage = () => {
                                         <h3 className="font-medium text-slate-900 transition-colors dark:text-slate-100">
                                             {station.nombre_estacion}
                                         </h3>
-                                        <p className="mt-0.5 text-xs text-slate-500 transition-colors dark:text-slate-400 sm:text-sm">
-                                            {station.parametros_disponibles || "Sin parámetros configurados"}
-                                        </p>
+                                        <div className="mt-0.5 text-xs text-slate-500 transition-colors dark:text-slate-400 sm:text-sm">
+                                            {station.parametros_disponibles ? (
+                                                <span className="flex flex-wrap gap-1.5">
+                                                    {Array.isArray(station.parametros_disponibles)
+                                                        ? station.parametros_disponibles.map((param, idx) => (
+                                                              <span
+                                                                  key={idx}
+                                                                  className="rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                                              >
+                                                                  {param}
+                                                              </span>
+                                                          ))
+                                                        : station.parametros_disponibles.split(/,\s*/).map((param, idx) => (
+                                                              <span
+                                                                  key={idx}
+                                                                  className="rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                                              >
+                                                                  {param.trim()}
+                                                              </span>
+                                                          ))}
+                                                </span>
+                                            ) : (
+                                                "Sin parámetros configurados"
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="mt-2 h-1 w-full scale-x-0 rounded-full bg-blue-500 transition-transform group-hover:scale-x-100"></div>
