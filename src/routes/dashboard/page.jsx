@@ -1,22 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-    Area,
-    AreaChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-    PieChart,
-    Pie,
-    Cell,
-    BarChart,
-    Bar,
-    Legend,
-    CartesianGrid,
-    LineChart,
-    Line,
-    ReferenceLine,
-} from "recharts";
+import { ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line, ReferenceLine } from "recharts";
 import { useTheme } from "@/hooks/use-theme";
 import { Footer } from "@/layouts/footer";
 import { useNavigate } from "react-router-dom";
@@ -26,27 +9,10 @@ import { toast } from "react-toastify";
 import { useResponsive } from "@/hooks/useResponsive";
 import { WeatherCard } from "@/components/Weather/WeatherCard";
 
-import {
-    FileText,
-    Wind,
-    Cloud,
-    Workflow,
-    Bell,
-    TrendingUp,
-    TrendingDown,
-    AlertCircle,
-    CheckCircle,
-    ThumbsUp,
-    ChevronRight,
-    BarChart2,
-    PieChart as PieChartIcon,
-    File,
-} from "lucide-react";
+import { AlertCircle, CheckCircle, BarChart2 } from "lucide-react";
 
 // Importar el contexto
 import { useNotifications } from "@/contexts/NotificationContext";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 // Añadir esta importación junto con las demás al inicio del archivo
 import KmzMapViewerSection from "@/components/dashboard/KmzMapViewerSection";
@@ -243,218 +209,6 @@ const DashboardPage = () => {
         }
     }, [user]);
 
-    // Preparar datos para gráficos
-    const prepareChartData = () => {
-        const usedDates = new Set();
-        const uniqueData = [];
-        let index = 0; // Contador único para asegurar claves únicas
-
-        measurements.forEach((item) => {
-            const dateObj = new Date(item.fecha_muestra);
-            const dateStr = format(dateObj, "d MMM", { locale: es });
-
-            // Agregar un pequeño offset aleatorio para evitar valores exactamente iguales
-            const randomOffset = Math.random() * 0.05;
-
-            // Usar un contador único como parte de la clave
-            if (!usedDates.has(dateStr)) {
-                usedDates.add(dateStr);
-
-                uniqueData.push({
-                    name: dateStr,
-                    Valor: parseFloat((parseFloat(item.concentracion) + randomOffset).toFixed(2)),
-                    Límite: parseFloat(item.valor_limite),
-                    // ID genuinamente único usando contador
-                    id: `measure-${index++}-${Date.now()}`,
-                });
-            }
-        });
-
-        // Tomar solo los últimos 10 elementos para evitar sobrecarga
-        return uniqueData.slice(-10);
-    };
-
-    // 1. Mejora en la función de preparación de datos
-    const prepareParametersData = () => {
-        if (measurements.length === 0) {
-            return []; // Añadir llaves y return explícito
-        }
-
-        // Agrupar mediciones por parámetro
-        const groupedByParam = {};
-        let totalSum = 0;
-
-        // Primera pasada: agrupar y calcular el total
-        measurements.forEach((m) => {
-            const value = parseNumberWithLocale(m.concentracion);
-            if (isNaN(value)) return; // Ignorar valores no numéricos
-
-            // Si el parámetro no existe en el grupo, inicializarlo
-            if (!groupedByParam[m.parametro]) {
-                groupedByParam[m.parametro] = 0;
-            }
-
-            // Sumar el valor al grupo correspondiente
-            groupedByParam[m.parametro] += value;
-            totalSum += value;
-        });
-
-        // Si no hay datos válidos o la suma total es cero, retornar un conjunto de datos predeterminado
-        if (totalSum === 0 || Object.keys(groupedByParam).length === 0) {
-            return [
-                {
-                    name: "Sin datos",
-                    value: 1,
-                    percentage: 100,
-                },
-            ];
-        }
-
-        // Segunda pasada: crear el array final con porcentajes
-        const result = Object.keys(groupedByParam).map((param) => {
-            const value = groupedByParam[param];
-            const percentage = ((value / totalSum) * 100).toFixed(1);
-
-            return {
-                name: param,
-                value: value,
-                percentage: parseFloat(percentage),
-            };
-        });
-
-        return result;
-    };
-
-    // Constantes para gráficos
-    const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
-
-    const RADIAN = Math.PI / 180;
-    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-        return (
-            <text
-                x={x}
-                y={y}
-                fill="white"
-                textAnchor={x > cx ? "start" : "end"}
-                dominantBaseline="central"
-            >
-                {`${(percent * 100).toFixed(0)}%`}
-            </text>
-        );
-    };
-
-    // Reducir el número de cards de indicadores
-    const renderIndicatorCards = () => {
-        if (latestMeasurement) {
-            const paramValue = latestMeasurement.concentracion;
-            const limit = latestMeasurement.valor_limite;
-            const percentage = ((paramValue / limit) * 100).toFixed(0);
-            const isHigh = paramValue / limit >= 0.8;
-
-            return (
-                <>
-                    {/* Card consolidada con los datos principales */}
-                    <div className="card group col-span-1 transition-all hover:border-blue-200 dark:hover:border-blue-800 lg:col-span-2">
-                        <div className="card-header border-b-0">
-                            <div className="dashboard-icon bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 dark:bg-blue-600/10 dark:text-blue-400 dark:group-hover:bg-blue-600/20">
-                                <Wind size={26} />
-                            </div>
-                            <div className="flex w-full justify-between">
-                                <p className="card-title">{latestMeasurement.parametro}</p>
-                                <span className={`indicator-badge ${isHigh ? "border-amber-500 text-amber-500" : "border-green-500 text-green-500"}`}>
-                                    {isHigh ? "Alerta" : "Normal"}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="card-body bg-gradient-to-br from-slate-50 to-slate-100 pt-2 dark:from-slate-900 dark:to-slate-950">
-                            <div className="flex items-center justify-between">
-                                <p className="indicator-value">
-                                    {paramValue} <span className="text-lg font-normal opacity-70">µg/m³</span>
-                                </p>
-                                <div className="text-right">
-                                    <span className={`flex items-center gap-1 ${isHigh ? "text-amber-500" : "text-blue-500"}`}>
-                                        {isHigh ? <TrendingUp size={18} /> : <CheckCircle size={18} />}
-                                        {percentage}% del límite
-                                    </span>
-                                    <p className="text-sm text-slate-500">
-                                        {measurements.length > 1 && measurements[0].concentracion > measurements[1].concentracion
-                                            ? "Tendencia: ↗ Subiendo"
-                                            : "Tendencia: ↘ Bajando"}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-3 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
-                                <div
-                                    className={`h-full rounded-full ${
-                                        percentage > 80 ? "bg-red-500" : percentage > 50 ? "bg-amber-500" : "bg-green-500"
-                                    }`}
-                                    style={{ width: `${percentage}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Archivos e informes en una única card */}
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="rounded-lg bg-blue-500/20 p-2 text-blue-500 transition-colors dark:bg-blue-600/20 dark:text-blue-600">
-                                <FileText size={26} />
-                            </div>
-                            <p className="card-title">Documentos</p>
-                        </div>
-                        <div className="card-body bg-slate-100 transition-colors dark:bg-slate-950">
-                            <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                    <p className="text-2xl font-bold text-slate-900 transition-colors dark:text-slate-50">{files.length}</p>
-                                    <span className="flex w-fit items-center gap-x-2 rounded-full border border-blue-500 px-2 py-1 font-medium text-blue-500 dark:border-blue-600 dark:text-blue-600">
-                                        <FileText size={18} />
-                                        Archivos
-                                    </span>
-                                </div>
-                                <div
-                                    className="ml-4 cursor-pointer rounded-lg bg-blue-100 px-3 py-2 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                    onClick={() => navigate("/archivos")}
-                                >
-                                    <ChevronRight size={20} />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-medium">Archivos KMZ</h2>
-                                <button
-                                    onClick={refreshFilesList}
-                                    className="rounded-full bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
-                                    title="Actualizar listado"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            );
-        } else {
-            // Versión simplificada sin datos disponibles
-            return <></>;
-        }
-    };
-
     function parseNumberWithLocale(value) {
         if (!value) return 0;
         // Convierte la entrada a string si no lo es
@@ -506,30 +260,6 @@ const DashboardPage = () => {
                 const percentB = parseNumberWithLocale(b.concentracion) / b.limite;
                 return percentB - percentA;
             });
-    };
-
-    // Función para preparar datos históricos para el gráfico
-    const prepareHistoricalDataByParameter = () => {
-        if (measurements.length === 0) return [];
-
-        // Agrupar mediciones por fecha y parámetro
-        const groupedByDate = {};
-
-        measurements.forEach((m) => {
-            const date = new Date(m.fecha_muestra).toLocaleDateString();
-
-            if (!groupedByDate[date]) {
-                groupedByDate[date] = {};
-            }
-
-            groupedByDate[date][m.parametro] = parseNumberWithLocale(m.concentracion);
-        });
-
-        // Convertir el objeto agrupado en un array de datos
-        return Object.keys(groupedByDate).map((date) => ({
-            fecha: date,
-            ...groupedByDate[date],
-        }));
     };
 
     // Preparar datos para gráfico de evolución histórica
@@ -586,12 +316,12 @@ const DashboardPage = () => {
         <div className="flex flex-col gap-y-4 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">Dashboard</h1>
 
-            {/* Reemplazar la tarjeta de bienvenida por un header corporativo */}
+            {/* 1. BANNER DE BIENVENIDA */}
             <div className="mb-6">
                 <div className="relative mb-4 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 p-8 text-white shadow-lg">
                     <div className="relative z-10">
                         <div className="flex items-center">
-                            {/* Aquí podrías agregar un logo */}
+                            {/* Logo/imagen de empresa */}
                             <div className="mr-4">
                                 {user?.empresa_logo ? (
                                     <img
@@ -627,33 +357,8 @@ const DashboardPage = () => {
                 </div>
             </div>
 
-            {/* Añade el WeatherCard aquí, justo antes de tus indicadores principales */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Weather Card - Nuevo componente */}
-                <WeatherCard /> {/* Sin pasar userId */}
-                {/* También puedes moverlo a la tarjeta de indicadores si prefieres */}
-            </div>
-
-            {/* Indicadores principales */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Indicadores principales */}
-                {renderIndicatorCards()}
-            </div>
-
-            {/* Nueva sección para visualización de KMZ */}
-            <div className="mb-6">
-                <Card>
-                    <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-                        <Title className="text-xl font-bold">Visualizador Geográfico</Title>
-                        <Text className="text-gray-500 dark:text-gray-400">Consulta los archivos KMZ de estaciones y puntos de medición</Text>
-                    </div>
-                    <div className="p-4">
-                        <KmzMapViewerSection />
-                    </div>
-                </Card>
-            </div>
-
-            <div className="card mt-4">
+            {/* 2. DATOS DE MEDICIONES (CON PESTAÑAS) */}
+            <div className="card mb-6">
                 <div className="card-header border-b-0 pb-0">
                     <div className="flex border-b">
                         <button
@@ -672,7 +377,6 @@ const DashboardPage = () => {
                 </div>
                 <div className="card-body">
                     {activeTab === "maximum" ? (
-                        // Contenido de Mediciones Máximas
                         <div className="max-h-[400px] overflow-auto">
                             <div className="card overflow-hidden">
                                 <div className="card-header flex items-center justify-between">
@@ -751,7 +455,6 @@ const DashboardPage = () => {
                             </div>
                         </div>
                     ) : (
-                        // Contenido de Evolución Histórica
                         <div className="h-[400px]">
                             <div className="card mt-4">
                                 <div className="card-header">
@@ -843,6 +546,24 @@ const DashboardPage = () => {
                 </div>
             </div>
 
+            {/* 3. VISUALIZADOR GEOGRÁFICO - Versión corregida */}
+            <div className="card mb-6">
+                <div className="card-header">
+                    <p className="card-title">Visualizador Geográfico</p>
+                </div>
+                <div className="card-body">
+                    <p className="mb-4 text-sm text-slate-500">Consulta los archivos KMZ de estaciones y puntos de medición</p>
+                    <KmzMapViewerSection />
+                </div>
+            </div>
+
+            {/* 4. INFORMACIÓN METEOROLÓGICA */}
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Weather Card */}
+                <WeatherCard /> {/* Sin pasar userId */}
+            </div>
+
+            {/* 5. FOOTER CON TIMESTAMP */}
             <div className="text-right text-sm text-slate-500 dark:text-slate-400">
                 <p>Última actualización: {new Date().toLocaleString()}</p>
             </div>
