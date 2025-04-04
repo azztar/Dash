@@ -1,5 +1,5 @@
+// src/contexts/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { authService } from "@/services/authService";
 
 const AuthContext = createContext();
@@ -9,16 +9,24 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Verificar sesión actual
+        // Verificar sesión al cargar
+        const checkAuth = async () => {
+            try {
+                const currentUser = await authService.getCurrentUser();
+                setUser(currentUser);
+            } catch (error) {
+                console.error("Error verificando autenticación:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkAuth();
+
+        // Configurar listener para cambios de autenticación
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
-            setUser(session?.user || null);
-            setLoading(false);
-        });
-
-        // Verificar sesión inicial
-        supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user || null);
             setLoading(false);
         });
