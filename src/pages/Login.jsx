@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRightIcon } from "@heroicons/react/24/solid";
 import AuthLayout from "@/components/AuthLayout";
+import { supabase } from "@/lib/supabase"; // Importa supabase
 
 const Login = () => {
     const navigate = useNavigate();
@@ -14,28 +15,31 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(""); // Limpiar error anterior
+        setError("");
 
         try {
-            const response = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ nit, password }),
+            console.log("Intentando login con:", nit);
+            // Transforma NIT a formato email para Supabase
+            const email = `${nit}@ejemplo.com`;
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
             });
 
-            const data = await response.json();
-            if (data.success) {
-                login(data.token, data.user);
+            console.log("Respuesta:", data, error);
+
+            if (error) throw error;
+
+            // Si el login es exitoso, actualizar el contexto y redirigir
+            if (data.user) {
+                login(data.session.access_token, data.user);
                 const from = location.state?.from?.pathname || "/dashboard";
                 navigate(from, { replace: true });
-            } else {
-                setError(data.message || "Credenciales inválidas");
             }
         } catch (error) {
-            console.error("Error al iniciar sesión:", error);
-            setError("Error al iniciar sesión");
+            console.error("Error de login:", error);
+            setError("Credenciales incorrectas");
         }
     };
 
