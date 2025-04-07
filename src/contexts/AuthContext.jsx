@@ -1,35 +1,50 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import axios from "axios";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    // Añadir un ref para evitar múltiples llamadas
     const initialCheckDone = useRef(false);
+
+    // Función para preservar rol y guardarlo en localStorage
+    const persistUserWithRole = (userData, rolValue) => {
+        const userWithRole = {
+            ...userData,
+            rol: rolValue,
+        };
+        console.log(`📝 Guardando usuario con rol ${rolValue}:`, userWithRole);
+        localStorage.setItem("user_with_role", JSON.stringify(userWithRole));
+        setUser(userWithRole);
+        return userWithRole;
+    };
 
     // Verificar sesión al cargar
     useEffect(() => {
-        // Solo ejecutar una vez
         if (initialCheckDone.current) return;
 
         const checkSession = async () => {
             try {
+                // 1. Verificar sesión en Supabase
                 const { data } = await supabase.auth.getSession();
+
                 if (data.session) {
-                    // Establecer rol directo para usuario de prueba
-                    if (data.session.user.email === "900900900@ejemplo.com") {
-                        const userWithRole = {
-                            ...data.session.user,
-                            rol: "administrador", // Forzar el rol de administrador
-                        };
-                        setUser(userWithRole);
+                    // 2. Obtener rol desde Supabase
+                    const email = data.session.user.email;
+                    const nit = email.split("@")[0];
+
+                    const { data: userData, error } = await supabase.from("usuarios").select("rol, nombre_empresa").eq("nit", nit).single();
+
+                    if (!error) {
+                        persistUserWithRole(data.session.user, userData.rol);
                     } else {
-                        // Para el resto de usuarios, obtener el rol desde MySQL
-                        // Aquí puedes llamar a tu API para obtener el rol
-                        // O simplemente usar login como ya lo tienes implementado
+                        // Si es el admin
+                        if (email === "900900900@ejemplo.com") {
+                            persistUserWithRole(data.session.user, "administrador");
+                        } else {
+                            persistUserWithRole(data.session.user, "cliente");
+                        }
                     }
                 }
             } catch (error) {
@@ -41,52 +56,32 @@ export function AuthProvider({ children }) {
         };
 
         checkSession();
-
-        // Suscribirse a cambios de autenticación
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                setUser(session.user);
-            } else {
-                setUser(null);
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
     }, []);
 
-    // Función de login que usa Supabase
+    // Función de login usando Supabase
     const login = async (token, userData) => {
         try {
-            console.log("🔑 Token recibido:", token ? "Presente" : "Ausente");
+            // Obtener rol desde Supabase
+            const email = userData.email;
+            const nit = email.split("@")[0];
 
-            // Guardar el token
-            localStorage.setItem("token", token);
+            const { data: userProfile, error } = await supabase.from("usuarios").select("rol, nombre_empresa").eq("nit", nit).single();
 
-            // ELIMINAR consulta a backend y usar SOLO los datos de Supabase
-            // Asignar rol de administrador al usuario específico
-            if (userData.email === "900900900@ejemplo.com") {
-                const userWithRole = {
-                    ...userData,
-                    rol: "administrador",
-                };
-                console.log("👑 Usuario con rol administrador:", userWithRole);
-                setUser(userWithRole);
+            if (!error) {
+                persistUserWithRole(userData, userProfile.rol);
+            } else if (email === "900900900@ejemplo.com") {
+                persistUserWithRole(userData, "administrador");
             } else {
-                // Para usuarios normales, asignar rol cliente
-                const userWithRole = {
-                    ...userData,
-                    rol: "cliente",
-                };
-                console.log("👤 Usuario con rol cliente:", userWithRole);
-                setUser(userWithRole);
+                persistUserWithRole(userData, "cliente");
             }
         } catch (error) {
-            console.error("❌ Error en login:", error);
-            setUser(userData); // Usar datos básicos en caso de error
+            console.error("Error al obtener rol:", error);
+            // Si falla, asignar rol por defecto
+            if (userData.email === "900900900@ejemplo.com") {
+                persistUserWithRole(userData, "administrador");
+            } else {
+                persistUserWithRole(userData, "cliente");
+            }
         }
     };
 
@@ -94,6 +89,7 @@ export function AuthProvider({ children }) {
     const logout = async () => {
         await supabase.auth.signOut();
         setUser(null);
+        localStorage.removeItem("user_with_role");
     };
 
     return (

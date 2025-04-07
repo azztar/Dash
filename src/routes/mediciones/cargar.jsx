@@ -9,6 +9,7 @@ import { AdminDateSelector } from "@/components/AdminDateSelector";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { PageContainer } from "@/components/PageContainer";
+import { supabase } from "@/lib/supabase";
 
 // 1. Primero, agrega la variable de entorno para la URL del API
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -47,11 +48,13 @@ const DataUploadPage = () => {
     const loadClients = async () => {
         try {
             setLoading(true);
-            const clientsData = await clientService.getClients();
-            setClients(clientsData || []);
+            const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
+
+            if (error) throw error;
+            setClients(data || []);
         } catch (error) {
             console.error("Error al cargar clientes:", error);
-            setClients([]);
+            toast.error("Error al cargar la lista de clientes");
         } finally {
             setLoading(false);
         }

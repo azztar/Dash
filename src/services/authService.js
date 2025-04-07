@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 
 export const authService = {
     async login(nit, password) {
-        // Convertir NIT a email para autenticación estándar de Supabase
+        // Convertir NIT a email para autenticación estándar
         const email = `${nit}@ejemplo.com`;
 
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -12,17 +12,25 @@ export const authService = {
         });
 
         if (error) throw error;
-        return data;
+
+        // Obtener rol y datos de usuario desde la tabla usuarios
+        const { data: userData, error: userError } = await supabase.from("usuarios").select("*").eq("nit", nit).single();
+
+        if (userError) throw userError;
+
+        // Combinar datos de autenticación con perfil de usuario
+        return {
+            ...data,
+            user: {
+                ...data.user,
+                rol: userData.rol,
+                nombre_empresa: userData.nombre_empresa,
+            },
+        };
     },
 
     async logout() {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-    },
-
-    async getCurrentUser() {
-        const { data } = await supabase.auth.getUser();
-        return data?.user;
+        return await supabase.auth.signOut();
     },
 };
 
