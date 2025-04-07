@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line, ReferenceLine } from "recharts";
 import { useTheme } from "@/hooks/use-theme";
 import { Footer } from "@/layouts/footer";
@@ -46,10 +46,10 @@ const lightenColor = (hexColor) => {
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 };
 
-const DashboardPage = () => {
+const DashboardPage = memo(({ user }) => {
     const { theme } = useTheme();
     const navigate = useNavigate();
-    const { token, user } = useAuth();
+    const { token, user: authUser } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL;
     const { isMobile } = useResponsive();
     const { generateNotifications } = useNotifications();
@@ -200,8 +200,9 @@ const DashboardPage = () => {
 
     // Añade un log para verificar qué datos están llegando:
     useEffect(() => {
+        // Solo log una vez cuando el componente se monta
         console.log("Datos de usuario en dashboard:", user);
-    }, [user]);
+    }, []);
 
     useEffect(() => {
         if (user && user.id && user.nombre && user.empresa) {
@@ -732,6 +733,6 @@ const DashboardPage = () => {
             <Footer />
         </div>
     );
-};
+});
 
 export default DashboardPage;

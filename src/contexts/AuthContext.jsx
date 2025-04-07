@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import axios from "axios";
 
@@ -7,15 +7,26 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    // Añadir un ref para evitar múltiples llamadas
+    const initialCheckDone = useRef(false);
 
     // Verificar sesión al cargar
     useEffect(() => {
+        // Solo ejecutar una vez
+        if (initialCheckDone.current) return;
+
         const checkSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-                setUser(data.session.user);
+            try {
+                const { data } = await supabase.auth.getSession();
+                if (data.session) {
+                    setUser(data.session.user);
+                }
+            } catch (error) {
+                console.error("Error verificando sesión:", error);
+            } finally {
+                setLoading(false);
+                initialCheckDone.current = true;
             }
-            setLoading(false);
         };
 
         checkSession();
@@ -39,28 +50,35 @@ export function AuthProvider({ children }) {
     // Función de login que usa Supabase
     const login = async (token, userData) => {
         try {
-            // 1. Primero autenticar con Supabase (ya lo tienes)
+            console.log("🔑 Token recibido:", token ? "Presente" : "Ausente");
 
-            // 2. Después consultar la información del usuario incluyendo el rol desde MySQL
+            // Guardar el token primero para que esté disponible para la siguiente solicitud
+            localStorage.setItem("token", token);
+
+            const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+            // Consultar información completa del usuario desde MySQL
             const response = await axios.get(`${API_URL}/api/auth/user-info`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
 
-            // 3. Combinar la información de Supabase con los datos de MySQL (especialmente el rol)
+            console.log("📊 Datos de usuario MySQL:", response.data);
+
+            // Combinar información de Supabase con MySQL, priorizando MySQL para el rol
             const userWithRole = {
                 ...userData,
                 ...response.data.user,
-                // Asegurarse que el rol venga de MySQL
-                rol: response.data.user.rol,
+                rol: response.data.user.rol, // Usar explícitamente el rol de MySQL
             };
 
-            // 4. Guardar el usuario completo en el estado
+            console.log("👑 Usuario final con rol:", userWithRole);
+
+            // Guardar el usuario completo en el estado
             setUser(userWithRole);
-            localStorage.setItem("token", token);
         } catch (error) {
-            console.error("Error al obtener información del usuario:", error);
+            console.error("❌ Error al obtener información del usuario:", error);
+            // Si falla, al menos guardar los datos básicos de Supabase
+            setUser(userData);
         }
     };
 

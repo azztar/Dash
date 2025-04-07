@@ -1,10 +1,20 @@
 // src/layouts/ProtectedRoute.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const { user, loading } = useAuth();
+
+    // Añadir este efecto para controlar las verificaciones
+    useEffect(() => {
+        // Solo registrar una vez
+        console.log("✅ ProtectedRoute: Verificación iniciada");
+
+        return () => {
+            console.log("⏹️ ProtectedRoute: Componente desmontado");
+        };
+    }, []);
 
     // Paso crítico: Esperar a que termine la verificación de autenticación
     if (loading) {
