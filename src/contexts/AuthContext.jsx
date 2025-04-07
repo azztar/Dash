@@ -19,7 +19,16 @@ export function AuthProvider({ children }) {
             try {
                 const { data } = await supabase.auth.getSession();
                 if (data.session) {
-                    setUser(data.session.user);
+                    // Establecer rol directo para usuario de prueba
+                    if (data.session.user.email === "900900900@ejemplo.com") {
+                        const userWithRole = {
+                            ...data.session.user,
+                            rol: "administrador", // Forzar el rol de administrador
+                        };
+                        setUser(userWithRole);
+                    } else {
+                        setUser(data.session.user);
+                    }
                 }
             } catch (error) {
                 console.error("Error verificando sesión:", error);
