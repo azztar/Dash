@@ -1,18 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Card, Select, SelectItem } from "@tremor/react";
-// Usar el DatePicker genérico para el formulario de carga
-import DatePicker from "@/components/DatePicker";
-import { es } from "date-fns/locale";
-import { clientService } from "@/services/clientService";
-import { Upload } from "lucide-react";
-import { AdminDateSelector } from "@/components/AdminDateSelector";
-import axios from "axios";
-import { toast } from "react-toastify";
-import { PageContainer } from "@/components/PageContainer";
+import { Card, Button, Select, SelectItem } from "@tremor/react";
 import { supabase } from "@/lib/supabase";
-
-// 1. Primero, agrega la variable de entorno para la URL del API
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "react-toastify";
+import { DatePicker } from "@/components/DatePicker";
+import { PageContainer } from "@/components/PageContainer";
+import { FileUpload, Upload } from "lucide-react";
 
 const DataUploadPage = () => {
     const [selectedClient, setSelectedClient] = useState("");
@@ -32,11 +25,20 @@ const DataUploadPage = () => {
     const [file, setFile] = useState(null);
     const [stations, setStations] = useState([]);
     const [declarationFile, setDeclarationFile] = useState(null);
+    const { user } = useAuth();
 
+    // Cargar clientes al montar componente
     useEffect(() => {
-        loadClients();
-    }, []);
+        if (user?.rol === "administrador" || user?.rol === "empleado") {
+            loadClients();
+        } else if (user?.rol === "cliente") {
+            // Si es cliente, autoseleccionar su ID
+            setSelectedClient(user.id);
+            loadStations(user.id);
+        }
+    }, [user]);
 
+    // Cargar estaciones cuando cambia cliente seleccionado
     useEffect(() => {
         if (selectedClient) {
             loadStations(selectedClient);
@@ -45,37 +47,24 @@ const DataUploadPage = () => {
         }
     }, [selectedClient]);
 
-    // En la función donde cargas clientes
+    // Cargar clientes desde Supabase
     const loadClients = async () => {
         try {
             setLoading(true);
 
-            // Verificar si debemos usar datos simulados (en producción)
-            const useMockData = import.meta.env.VITE_USE_MOCK_DATA === "true";
-
-            if (useMockData) {
-                console.log("📊 Usando datos simulados para clientes");
-                const mockClients = [
-                    { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
-                    { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
-                ];
-                setClients(mockClients);
-                return;
-            }
-
-            // Intento con Supabase
             const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
 
             if (error) throw error;
             setClients(data || []);
         } catch (error) {
             console.error("Error al cargar clientes:", error);
-            // Usar datos simulados como fallback
+            // Datos de respaldo
             const mockClients = [
-                { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
-                { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
+                { id_usuario: "1", nombre_empresa: "Cliente 1", nit: "900900901" },
+                { id_usuario: "2", nombre_empresa: "Cliente 2", nit: "900900902" },
             ];
             setClients(mockClients);
+            toast.error("Error al cargar clientes");
         } finally {
             setLoading(false);
         }
@@ -85,11 +74,13 @@ const DataUploadPage = () => {
     const loadStations = async (clientId) => {
         try {
             setLoading(true);
+
+            // Primera opción: intentar cargar desde Supabase
             const { data, error } = await supabase.from("estaciones").select("id_estacion, nombre_estacion").eq("id_usuario", clientId);
 
-            if (error) {
-                console.error("Error de Supabase:", error);
-                // Estaciones predeterminadas como fallback
+            // Si hay error o no hay datos, usar estaciones predefinidas
+            if (error || !data || data.length === 0) {
+                // Estaciones predefinidas como respaldo
                 const defaultStations = [
                     { id_estacion: "1", nombre_estacion: "Estación 1" },
                     { id_estacion: "2", nombre_estacion: "Estación 2" },
@@ -97,12 +88,20 @@ const DataUploadPage = () => {
                     { id_estacion: "4", nombre_estacion: "Estación 4" },
                 ];
                 setStations(defaultStations);
-            } else {
-                setStations(data || []);
+                return;
             }
+
+            setStations(data);
         } catch (error) {
-            console.error("Error:", error);
-            setStations([]);
+            console.error("Error al cargar estaciones:", error);
+            // Estaciones de respaldo
+            const defaultStations = [
+                { id_estacion: "1", nombre_estacion: "Estación 1" },
+                { id_estacion: "2", nombre_estacion: "Estación 2" },
+                { id_estacion: "3", nombre_estacion: "Estación 3" },
+                { id_estacion: "4", nombre_estacion: "Estación 4" },
+            ];
+            setStations(defaultStations);
         } finally {
             setLoading(false);
         }
@@ -143,14 +142,14 @@ const DataUploadPage = () => {
 
             // 1. Subir archivo a Supabase Storage
             const fileExt = file.name.split(".").pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}`;
-            const filePath = `${selectedClient}/${fileName}.${fileExt}`;
+            const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+            const filePath = `measurements/${selectedClient}/${fileName}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage.from("measurements").upload(filePath, file);
+            const { error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
-            // 2. Registrar en la base de datos
+            // 2. Registrar medición en la tabla mediciones_aire
             const { error: dbError } = await supabase.from("mediciones_aire").insert([
                 {
                     id_estacion: selectedStation,
@@ -163,17 +162,37 @@ const DataUploadPage = () => {
 
             if (dbError) throw dbError;
 
-            // 3. Si hay declaración, procesar también
+            // 3. Si hay archivo de declaración, procesarlo también
             if (declarationFile) {
                 const declExt = declarationFile.name.split(".").pop();
-                const declName = `decl-${Date.now()}-${Math.random().toString(36).substring(2)}`;
-                const declPath = `${selectedClient}/declarations/${declName}.${declExt}`;
+                const declName = `declaration_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+                const declPath = `declarations/${selectedClient}/${declName}.${declExt}`;
 
-                const { error: declUploadError } = await supabase.storage.from("declarations").upload(declPath, declarationFile);
+                const { error: declUploadError } = await supabase.storage.from("files").upload(declPath, declarationFile);
 
                 if (declUploadError) throw declUploadError;
 
-                toast.success("Mediciones y declaraciones cargadas exitosamente");
+                // Obtener ID de la medición recién insertada
+                const { data: medicionData } = await supabase
+                    .from("mediciones_aire")
+                    .select("id_medicion_aire")
+                    .order("id_medicion_aire", { ascending: false })
+                    .limit(1);
+
+                if (medicionData && medicionData.length > 0) {
+                    const medicionId = medicionData[0].id_medicion_aire;
+
+                    // Insertar declaración de conformidad
+                    await supabase.from("declaraciones_conformidad").insert([
+                        {
+                            id_medicion: medicionId,
+                            regla_decision: "Automática",
+                            archivo_url: declPath,
+                        },
+                    ]);
+                }
+
+                toast.success("Mediciones y declaración cargadas exitosamente");
             } else {
                 toast.success("Mediciones cargadas exitosamente");
             }
@@ -189,187 +208,131 @@ const DataUploadPage = () => {
     };
 
     return (
-        <PageContainer className="mediciones-cargar-page">
+        <PageContainer>
             <h1 className="mb-8 text-2xl font-bold text-slate-900 dark:text-white">Carga de Mediciones y Declaraciones</h1>
 
-            <div className="mediciones-cargar-page p-6">
-                <form onSubmit={handleSubmit}>
-                    <Card className="space-y-8 dark:bg-slate-800 dark:text-white">
-                        {/* Sección de Selección */}
-                        <div className="space-y-12">
-                            {" "}
-                            {/* Aumentamos el espaciado vertical */}
-                            {/* Cliente */}
-                            <div className="space-y-6">
-                                {" "}
-                                {/* Aumentamos el espaciado */}
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Información del Cliente</h2>
-                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                    <div className="relative">
-                                        {" "}
-                                        {/* Añadimos posición relativa */}
-                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
-                                        <div className="relative z-20">
-                                            {" "}
-                                            {/* Control del z-index */}
-                                            <Select
-                                                value={selectedClient}
-                                                onValueChange={setSelectedClient}
-                                                placeholder="Seleccione un cliente"
-                                                disabled={loading}
-                                            >
-                                                {clients.map((client) => (
-                                                    <SelectItem
-                                                        key={client.id_usuario}
-                                                        value={client.id_usuario}
-                                                    >
-                                                        {client.nombre_empresa}
-                                                    </SelectItem>
-                                                ))}
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Estación y Parámetro */}
-                            <div className="space-y-6">
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detalles de Medición</h2>
-                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                    <div className="relative">
-                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Estación</label>
-                                        <div className="relative z-10">
-                                            <Select
-                                                value={selectedStation}
-                                                onValueChange={setSelectedStation}
-                                                placeholder="Seleccione una estación"
-                                                disabled={!selectedClient || loading}
-                                            >
-                                                {stations.map((station) => (
-                                                    <SelectItem
-                                                        key={station.id_estacion}
-                                                        value={station.id_estacion}
-                                                    >
-                                                        {station.nombre_estacion}
-                                                    </SelectItem>
-                                                ))}
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative">
-                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Parámetro</label>
-                                        <div className="relative z-10">
-                                            <Select
-                                                value={selectedParameter}
-                                                onValueChange={setSelectedParameter}
-                                                placeholder="Seleccione un parámetro"
-                                                disabled={!selectedStation || loading}
-                                            >
-                                                {parameters.map((param) => (
-                                                    <SelectItem
-                                                        key={param.id}
-                                                        value={param.id}
-                                                    >
-                                                        {param.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative">
-                                        <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Periodo</label>
-                                        <div className="relative z-10 dark:text-white">
-                                            {" "}
-                                            {/* Añade dark:text-white aquí */}
-                                            <div className="date-picker-wrapper dark:text-white">
-                                                {" "}
-                                                {/* Contenedor con clase personalizada */}
-                                                <AdminDateSelector
-                                                    selectedDate={selectedDate}
-                                                    onSelect={setSelectedDate}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Carga de Archivo */}
-                            <div className="space-y-6">
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Archivos de Datos</h2>
-
-                                {/* Archivo de Mediciones */}
-                                <div className="space-y-4">
-                                    <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Mediciones</h3>
-                                    <div className="relative z-0">
-                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700">
-                                            <div className="flex flex-col items-center justify-center pb-6 pt-5">
-                                                <Upload className="mb-3 h-8 w-8 text-gray-400 dark:text-gray-300" />
-                                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    <span className="font-semibold">Click para seleccionar archivo de mediciones</span>
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">XLSX, XLS (MAX. 10MB)</p>
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept=".xlsx,.xls"
-                                                onChange={handleFileUpload}
-                                                disabled={loading}
-                                            />
-                                        </label>
-                                        {file && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Archivo de mediciones: {file.name}</p>}
-                                    </div>
-                                </div>
-
-                                {/* Archivo de Declaraciones */}
-                                <div className="space-y-4">
-                                    <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Declaraciones de Conformidad</h3>
-                                    <div className="relative z-0">
-                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
-                                            <div className="flex flex-col items-center justify-center pb-6 pt-5">
-                                                <Upload className="mb-3 h-8 w-8 text-gray-400" />
-                                                <p className="mb-2 text-sm text-gray-500">
-                                                    <span className="font-semibold">Click para seleccionar archivo de declaraciones</span>
-                                                </p>
-                                                <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept=".xlsx,.xls"
-                                                onChange={handleDeclarationFileUpload}
-                                                disabled={loading}
-                                            />
-                                        </label>
-                                        {declarationFile && (
-                                            <p className="mt-2 text-sm text-gray-500">Archivo de declaraciones: {declarationFile.name}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Botones de Acción */}
-                        <div className="flex justify-end space-x-4 border-t pt-6">
-                            <button
-                                type="button"
-                                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            <Card className="dark:bg-slate-800">
+                <form
+                    onSubmit={handleSubmit}
+                    className="space-y-6"
+                >
+                    {/* Sección de cliente */}
+                    {(user?.rol === "administrador" || user?.rol === "empleado") && (
+                        <div>
+                            <label className="mb-2 block text-sm font-medium">Cliente</label>
+                            <Select
+                                value={selectedClient}
+                                onValueChange={setSelectedClient}
+                                placeholder="Seleccione un cliente"
                                 disabled={loading}
                             >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                                disabled={loading || !file}
-                            >
-                                {loading ? "Cargando..." : "Cargar Datos"}
-                            </button>
+                                {clients.map((client) => (
+                                    <SelectItem
+                                        key={client.id_usuario}
+                                        value={client.id_usuario}
+                                    >
+                                        {client.nombre_empresa || client.nit}
+                                    </SelectItem>
+                                ))}
+                            </Select>
                         </div>
-                    </Card>
+                    )}
+
+                    {/* Resto de los campos del formulario */}
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium">Estación</label>
+                            <Select
+                                value={selectedStation}
+                                onValueChange={setSelectedStation}
+                                placeholder="Seleccione una estación"
+                                disabled={loading || !selectedClient || stations.length === 0}
+                            >
+                                {stations.map((station) => (
+                                    <SelectItem
+                                        key={station.id_estacion}
+                                        value={station.id_estacion}
+                                    >
+                                        {station.nombre_estacion}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div>
+                            <label className="mb-2 block text-sm font-medium">Parámetro</label>
+                            <Select
+                                value={selectedParameter}
+                                onValueChange={setSelectedParameter}
+                                placeholder="Seleccione un parámetro"
+                                disabled={loading}
+                            >
+                                {parameters.map((param) => (
+                                    <SelectItem
+                                        key={param.id}
+                                        value={param.id}
+                                    >
+                                        {param.name}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                        </div>
+                    </div>
+
+                    {/* Fecha y archivos */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">Fecha de medición</label>
+                        <DatePicker
+                            selected={selectedDate}
+                            onChange={setSelectedDate}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">Archivo de mediciones (.xlsx, .csv)</label>
+                        <div className="flex items-center space-x-2">
+                            <label className="flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                <Upload className="mr-2 h-5 w-5" />
+                                Seleccionar archivo
+                                <input
+                                    type="file"
+                                    onChange={handleFileUpload}
+                                    accept=".xlsx,.xls,.csv"
+                                    className="hidden"
+                                />
+                            </label>
+                            {file && <span className="text-sm text-gray-500">{file.name}</span>}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">Declaración de conformidad (opcional)</label>
+                        <div className="flex items-center space-x-2">
+                            <label className="flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                <FileUpload className="mr-2 h-5 w-5" />
+                                Seleccionar archivo
+                                <input
+                                    type="file"
+                                    onChange={handleDeclarationFileUpload}
+                                    accept=".pdf,.xlsx,.xls,.csv"
+                                    className="hidden"
+                                />
+                            </label>
+                            {declarationFile && <span className="text-sm text-gray-500">{declarationFile.name}</span>}
+                        </div>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        disabled={loading || !selectedClient || !selectedStation || !selectedParameter || !file}
+                        className="w-full"
+                        variant="primary"
+                    >
+                        {loading ? "Cargando..." : "Cargar datos"}
+                    </Button>
                 </form>
-            </div>
+            </Card>
         </PageContainer>
     );
 };
