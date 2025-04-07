@@ -1,14 +1,15 @@
 import React from "react";
-import { DatePicker } from "@tremor/react";
+import { DatePicker as TremorDatePicker } from "@tremor/react";
 import { es } from "date-fns/locale";
 
-const DateSelector = ({ selectedDate, onSelect }) => {
+// Exportar DatePicker como exportación con nombre (named export)
+export const DatePicker = ({ selectedDate, onChange, className }) => {
     return (
         <div className="w-full">
-            <DatePicker
-                className="w-full"
+            <TremorDatePicker
+                className={`w-full ${className || ""}`}
                 value={selectedDate}
-                onValueChange={onSelect}
+                onValueChange={onChange}
                 locale={es}
                 placeholder="Seleccione una fecha"
             />
@@ -16,5 +17,5 @@ const DateSelector = ({ selectedDate, onSelect }) => {
     );
 };
 
-// Exportación por defecto
-export default DateSelector;
+// También añadir exportación por defecto para compatibilidad
+export default DatePicker;

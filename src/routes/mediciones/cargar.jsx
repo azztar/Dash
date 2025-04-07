@@ -3,7 +3,7 @@ import { Card, Button, Select, SelectItem } from "@tremor/react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "react-toastify";
-import { DatePicker } from "@/components/DatePicker";
+import DatePicker from "@/components/DatePicker";
 import { PageContainer } from "@/components/PageContainer";
 import { FileUpload, Upload } from "lucide-react";
 
@@ -52,19 +52,28 @@ const DataUploadPage = () => {
         try {
             setLoading(true);
 
+            // Verificar si debemos usar datos simulados
+            if (import.meta.env.VITE_USE_MOCK_DATA === "true") {
+                console.log("📊 Usando datos simulados para clientes");
+                const mockClients = [
+                    { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
+                    { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
+                ];
+                setClients(mockClients);
+                return;
+            }
+
             const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
 
             if (error) throw error;
             setClients(data || []);
         } catch (error) {
             console.error("Error al cargar clientes:", error);
-            // Datos de respaldo
-            const mockClients = [
-                { id_usuario: "1", nombre_empresa: "Cliente 1", nit: "900900901" },
-                { id_usuario: "2", nombre_empresa: "Cliente 2", nit: "900900902" },
-            ];
-            setClients(mockClients);
-            toast.error("Error al cargar clientes");
+            // Datos de fallback en caso de error
+            setClients([
+                { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
+                { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
+            ]);
         } finally {
             setLoading(false);
         }
