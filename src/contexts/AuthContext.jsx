@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import axios from "axios";
 
 const AuthContext = createContext();
 
@@ -37,10 +38,29 @@ export function AuthProvider({ children }) {
 
     // Función de login que usa Supabase
     const login = async (token, userData) => {
-        // Si se llama desde el componente Login, ya tenemos el usuario
-        // Pero también permitimos llamar manualmente con token/userData si es necesario
-        if (userData) {
-            setUser(userData);
+        try {
+            // 1. Primero autenticar con Supabase (ya lo tienes)
+
+            // 2. Después consultar la información del usuario incluyendo el rol desde MySQL
+            const response = await axios.get(`${API_URL}/api/auth/user-info`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            // 3. Combinar la información de Supabase con los datos de MySQL (especialmente el rol)
+            const userWithRole = {
+                ...userData,
+                ...response.data.user,
+                // Asegurarse que el rol venga de MySQL
+                rol: response.data.user.rol,
+            };
+
+            // 4. Guardar el usuario completo en el estado
+            setUser(userWithRole);
+            localStorage.setItem("token", token);
+        } catch (error) {
+            console.error("Error al obtener información del usuario:", error);
         }
     };
 
