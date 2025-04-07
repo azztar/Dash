@@ -45,29 +45,32 @@ const DataUploadPage = () => {
         }
     }, [selectedClient]);
 
-    // Corregir función loadClients para usar correctamente Supabase
+    // En la función donde cargas clientes
     const loadClients = async () => {
         try {
             setLoading(true);
 
-            // Primero intentar cargar desde Supabase
-            const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
+            // Verificar si debemos usar datos simulados (en producción)
+            const useMockData = import.meta.env.VITE_USE_MOCK_DATA === "true";
 
-            if (error) {
-                console.warn("Error al cargar clientes desde Supabase:", error);
-                // Usar datos simulados como fallback
+            if (useMockData) {
+                console.log("📊 Usando datos simulados para clientes");
                 const mockClients = [
                     { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
                     { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
                 ];
                 setClients(mockClients);
-            } else {
-                setClients(data || []);
+                return;
             }
+
+            // Intento con Supabase
+            const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
+
+            if (error) throw error;
+            setClients(data || []);
         } catch (error) {
             console.error("Error al cargar clientes:", error);
-            toast.error("Error al cargar la lista de clientes");
-            // También usar datos simulados en caso de error
+            // Usar datos simulados como fallback
             const mockClients = [
                 { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
                 { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
