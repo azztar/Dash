@@ -63,32 +63,30 @@ export function AuthProvider({ children }) {
         try {
             console.log("🔑 Token recibido:", token ? "Presente" : "Ausente");
 
-            // Guardar el token primero para que esté disponible para la siguiente solicitud
+            // Guardar el token
             localStorage.setItem("token", token);
 
-            const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-            // Consultar información completa del usuario desde MySQL
-            const response = await axios.get(`${API_URL}/api/auth/user-info`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            console.log("📊 Datos de usuario MySQL:", response.data);
-
-            // Combinar información de Supabase con MySQL, priorizando MySQL para el rol
-            const userWithRole = {
-                ...userData,
-                ...response.data.user,
-                rol: response.data.user.rol, // Usar explícitamente el rol de MySQL
-            };
-
-            console.log("👑 Usuario final con rol:", userWithRole);
-
-            // Guardar el usuario completo en el estado
-            setUser(userWithRole);
+            // ELIMINAR consulta a backend y usar SOLO los datos de Supabase
+            // Asignar rol de administrador al usuario específico
+            if (userData.email === "900900900@ejemplo.com") {
+                const userWithRole = {
+                    ...userData,
+                    rol: "administrador",
+                };
+                console.log("👑 Usuario con rol administrador:", userWithRole);
+                setUser(userWithRole);
+            } else {
+                // Para usuarios normales, asignar rol cliente
+                const userWithRole = {
+                    ...userData,
+                    rol: "cliente",
+                };
+                console.log("👤 Usuario con rol cliente:", userWithRole);
+                setUser(userWithRole);
+            }
         } catch (error) {
-            console.error("❌ Error al obtener información del usuario:", error);
-            setUser(userData); // Si falla, usar los datos básicos de Supabase
+            console.error("❌ Error en login:", error);
+            setUser(userData); // Usar datos básicos en caso de error
         }
     };
 
