@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
 const { authMiddleware } = require("../middleware/authMiddleware");
+const db = require("../config/database"); // AÑADIR ESTA LÍNEA
 
 // Ruta de login
 router.post("/login", authController.login);

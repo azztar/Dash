@@ -27,7 +27,9 @@ export function AuthProvider({ children }) {
                         };
                         setUser(userWithRole);
                     } else {
-                        setUser(data.session.user);
+                        // Para el resto de usuarios, obtener el rol desde MySQL
+                        // Aquí puedes llamar a tu API para obtener el rol
+                        // O simplemente usar login como ya lo tienes implementado
                     }
                 }
             } catch (error) {
@@ -86,8 +88,7 @@ export function AuthProvider({ children }) {
             setUser(userWithRole);
         } catch (error) {
             console.error("❌ Error al obtener información del usuario:", error);
-            // Si falla, al menos guardar los datos básicos de Supabase
-            setUser(userData);
+            setUser(userData); // Si falla, usar los datos básicos de Supabase
         }
     };
 
