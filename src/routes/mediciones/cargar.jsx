@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "react-toastify";
 import DatePicker from "@/components/DatePicker";
 import { PageContainer } from "@/components/PageContainer";
-import { FileUpload, Upload } from "lucide-react";
+import { FileUp, Upload } from "lucide-react";
 
 const DataUploadPage = () => {
     const [selectedClient, setSelectedClient] = useState("");
@@ -319,7 +319,7 @@ const DataUploadPage = () => {
                         <label className="mb-2 block text-sm font-medium">Declaración de conformidad (opcional)</label>
                         <div className="flex items-center space-x-2">
                             <label className="flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                                <FileUpload className="mr-2 h-5 w-5" />
+                                <FileUp className="mr-2 h-5 w-5" />
                                 Seleccionar archivo
                                 <input
                                     type="file"
