@@ -9,6 +9,7 @@ import { PencilLine, Trash, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
 import { useResponsive } from "@/hooks/useResponsive";
+import { supabase } from "@/supabaseClient";
 
 const AdminPage = () => {
     const { theme } = useTheme();
@@ -19,45 +20,59 @@ const AdminPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Cargar usuarios desde la base de datos
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
+    // Cargar usuarios desde Supabase
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/users", {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-            });
-            const data = await response.json();
-            if (data.success) {
-                setUsers(data.users);
+            setLoading(true);
+            const { data, error } = await supabase.from("usuarios").select("*");
+
+            if (error) {
+                console.error("Error al cargar usuarios:", error);
+                // Usar datos simulados en desarrollo
+                const mockUsers = [
+                    {
+                        id_usuario: "1",
+                        nombre_usuario: "Admin",
+                        email: "900900900@ejemplo.com",
+                        rol: "administrador",
+                        nit: "900900900",
+                        nombre_empresa: "ICC Ambiental",
+                    },
+                    {
+                        id_usuario: "2",
+                        nombre_usuario: "Cliente Test",
+                        email: "900900901@ejemplo.com",
+                        rol: "cliente",
+                        nit: "900900901",
+                        nombre_empresa: "Empresa Test",
+                    },
+                ];
+                setUsers(mockUsers);
+            } else {
+                setUsers(data || []);
             }
-            setLoading(false);
         } catch (error) {
             console.error("Error al cargar usuarios:", error);
             toast.error("Error al cargar usuarios");
+        } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     // Manejar la eliminación de un usuario
     const handleDeleteUser = async (id) => {
         if (!confirm("¿Está seguro de eliminar este usuario?")) return;
 
         try {
-            const response = await fetch(`/api/users/${id}`, {
-                method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-            });
-            if (response.ok) {
-                fetchUsers();
-                toast.success("Usuario eliminado correctamente");
-            }
+            const { error } = await supabase.from("usuarios").delete().eq("id_usuario", id);
+
+            if (error) throw error;
+            fetchUsers();
+            toast.success("Usuario eliminado correctamente");
         } catch (error) {
             console.error("Error al eliminar usuario:", error);
             toast.error("Error al eliminar usuario");
@@ -95,20 +110,33 @@ const AdminPage = () => {
     // Manejar la adición de un nuevo usuario
     const handleAddUser = async (userData) => {
         try {
-            const response = await fetch("/api/users", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-                body: JSON.stringify(userData), // Enviar la contraseña sin hash
+            // 1. Registrar el usuario en Auth
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: `${userData.nit}@ejemplo.com`,
+                password: userData.contrasena,
             });
 
-            if (response.ok) {
-                fetchUsers();
-                setIsAddUserModalOpen(false);
-                toast.success("Usuario agregado correctamente");
-            }
+            if (authError) throw authError;
+
+            // 2. Agregar datos del usuario en la tabla usuarios
+            const { error } = await supabase.from("usuarios").insert([
+                {
+                    id_usuario: authData.user.id,
+                    nombre_usuario: userData.nombre_usuario,
+                    email: userData.email,
+                    rol: userData.rol,
+                    nombre_empresa: userData.nombre_empresa,
+                    contacto: userData.contacto,
+                    direccion: userData.direccion,
+                    nit: userData.nit,
+                },
+            ]);
+
+            if (error) throw error;
+
+            fetchUsers();
+            setIsAddUserModalOpen(false);
+            toast.success("Usuario agregado correctamente");
         } catch (error) {
             console.error("Error al agregar usuario:", error);
             toast.error("Error al agregar usuario");

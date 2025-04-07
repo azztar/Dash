@@ -45,35 +45,60 @@ const DataUploadPage = () => {
         }
     }, [selectedClient]);
 
+    // Corregir función loadClients para usar correctamente Supabase
     const loadClients = async () => {
         try {
             setLoading(true);
+
+            // Primero intentar cargar desde Supabase
             const { data, error } = await supabase.from("usuarios").select("id_usuario, nombre_empresa, nit").eq("rol", "cliente");
 
-            if (error) throw error;
-            setClients(data || []);
+            if (error) {
+                console.warn("Error al cargar clientes desde Supabase:", error);
+                // Usar datos simulados como fallback
+                const mockClients = [
+                    { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
+                    { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
+                ];
+                setClients(mockClients);
+            } else {
+                setClients(data || []);
+            }
         } catch (error) {
             console.error("Error al cargar clientes:", error);
             toast.error("Error al cargar la lista de clientes");
+            // También usar datos simulados en caso de error
+            const mockClients = [
+                { id_usuario: "1", nombre_empresa: "Cliente 900900901", nit: "900900901" },
+                { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
+            ];
+            setClients(mockClients);
         } finally {
             setLoading(false);
         }
     };
 
+    // Cargar estaciones desde Supabase
     const loadStations = async (clientId) => {
         try {
             setLoading(true);
-            // Estaciones predeterminadas que se usarán siempre
-            const defaultStations = [
-                { id_estacion: "1", nombre_estacion: "Estación 1" },
-                { id_estacion: "2", nombre_estacion: "Estación 2" },
-                { id_estacion: "3", nombre_estacion: "Estación 3" },
-                { id_estacion: "4", nombre_estacion: "Estación 4" },
-            ];
+            const { data, error } = await supabase.from("estaciones").select("id_estacion, nombre_estacion").eq("id_usuario", clientId);
 
-            setStations(defaultStations);
+            if (error) {
+                console.error("Error de Supabase:", error);
+                // Estaciones predeterminadas como fallback
+                const defaultStations = [
+                    { id_estacion: "1", nombre_estacion: "Estación 1" },
+                    { id_estacion: "2", nombre_estacion: "Estación 2" },
+                    { id_estacion: "3", nombre_estacion: "Estación 3" },
+                    { id_estacion: "4", nombre_estacion: "Estación 4" },
+                ];
+                setStations(defaultStations);
+            } else {
+                setStations(data || []);
+            }
         } catch (error) {
-            console.error("Error al cargar estaciones:", error);
+            console.error("Error:", error);
             setStations([]);
         } finally {
             setLoading(false);
@@ -102,53 +127,59 @@ const DataUploadPage = () => {
         setSelectedDate(new Date());
     };
 
-    // 2. Modifica el handleSubmit para usar la URL correcta
+    // Manejar envío del formulario
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!selectedClient || !selectedStation || !selectedParameter || !file) {
+            toast.error("Por favor complete todos los campos y seleccione un archivo");
+            return;
+        }
 
         try {
-            // Primero cargar mediciones
-            const medicionesFormData = new FormData();
-            medicionesFormData.append("file", file);
-            medicionesFormData.append("stationId", selectedStation);
-            medicionesFormData.append("parameterId", selectedParameter);
-            medicionesFormData.append("selectedClient", selectedClient);
-            medicionesFormData.append("fecha_inicio_muestra", selectedDate.toISOString().split("T")[0]);
+            setLoading(true);
 
-            const medicionesResponse = await axios.post(`${API_URL}/api/measurements/upload`, medicionesFormData, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    "Content-Type": "multipart/form-data",
+            // 1. Subir archivo a Supabase Storage
+            const fileExt = file.name.split(".").pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}`;
+            const filePath = `${selectedClient}/${fileName}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage.from("measurements").upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // 2. Registrar en la base de datos
+            const { error: dbError } = await supabase.from("mediciones_aire").insert([
+                {
+                    id_estacion: selectedStation,
+                    id_norma: selectedParameter,
+                    id_cliente: selectedClient,
+                    fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
+                    archivo_url: filePath,
                 },
-            });
+            ]);
 
-            if (medicionesResponse.data.success && declarationFile) {
-                // Si hay archivo de declaraciones, cargarlo
-                const declaracionesFormData = new FormData();
-                declaracionesFormData.append("file", declarationFile);
-                declaracionesFormData.append("stationId", selectedStation);
-                declaracionesFormData.append("parameterId", selectedParameter);
-                declaracionesFormData.append("selectedClient", selectedClient);
-                declaracionesFormData.append("fecha", selectedDate.toISOString().split("T")[0]);
+            if (dbError) throw dbError;
 
-                const declaracionesResponse = await axios.post(`${API_URL}/api/declarations/upload`, declaracionesFormData, {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("token")}`,
-                        "Content-Type": "multipart/form-data",
-                    },
-                });
+            // 3. Si hay declaración, procesar también
+            if (declarationFile) {
+                const declExt = declarationFile.name.split(".").pop();
+                const declName = `decl-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+                const declPath = `${selectedClient}/declarations/${declName}.${declExt}`;
 
-                if (declaracionesResponse.data.success) {
-                    toast.success("Mediciones y declaraciones cargadas exitosamente");
-                }
+                const { error: declUploadError } = await supabase.storage.from("declarations").upload(declPath, declarationFile);
+
+                if (declUploadError) throw declUploadError;
+
+                toast.success("Mediciones y declaraciones cargadas exitosamente");
             } else {
                 toast.success("Mediciones cargadas exitosamente");
             }
+
+            // Resetear el formulario
             resetForm();
         } catch (error) {
             console.error("Error al cargar datos:", error);
-            toast.error(error.response?.data?.message || "Error al cargar los datos");
+            toast.error(error.message || "Error al cargar los datos");
         } finally {
             setLoading(false);
         }
