@@ -220,104 +220,56 @@ const DataUploadPage = () => {
         try {
             setLoading(true);
 
-            // Validaciones más específicas antes de convertir
-            if (!selectedClient.trim()) {
-                toast.error("Cliente no seleccionado correctamente");
-                return;
-            }
-
-            if (!selectedStation.trim()) {
-                toast.error("Estación no seleccionada correctamente");
-                return;
-            }
-
-            if (!selectedParameter.trim()) {
-                toast.error("Parámetro no seleccionado correctamente");
-                return;
-            }
-
-            // Para diagnóstico - muestra los valores antes de convertir
+            // Validaciones y conversiones de tipos
             console.log("Valores a convertir:", {
                 selectedClient,
                 selectedStation,
                 selectedParameter,
             });
 
-            // Convertir IDs a enteros con mejor manejo de errores
-            let clienteId, estacionId, normaId;
+            // Convertir IDs a enteros
+            const clienteId = parseInt(selectedClient, 10);
+            const estacionId = parseInt(selectedStation, 10);
+            // El parámetro se mantiene como string (PM10, PM2.5, etc.)
+            const normaId = selectedParameter;
 
-            try {
-                // Primero intentar con IDs nativos de Supabase (UUID)
-                if (selectedClient.includes("-")) {
-                    clienteId = selectedClient;
-                } else {
-                    clienteId = parseInt(selectedClient, 10);
-                    if (isNaN(clienteId)) throw new Error("ID de cliente inválido");
-                }
-
-                if (selectedStation.includes("-")) {
-                    estacionId = selectedStation;
-                } else {
-                    estacionId = parseInt(selectedStation, 10);
-                    if (isNaN(estacionId)) throw new Error("ID de estación inválido");
-                }
-
-                // El parámetro puede ser texto (PM10, SO2, etc.) o un ID numérico
-                if (["PM10", "PM2.5", "SO2", "NO2", "O3", "CO"].includes(selectedParameter)) {
-                    normaId = selectedParameter; // Usar el nombre del parámetro directamente
-                } else {
-                    normaId = parseInt(selectedParameter, 10);
-                    if (isNaN(normaId)) throw new Error("ID de parámetro inválido");
-                }
-            } catch (conversionError) {
-                toast.error(`Error de conversión: ${conversionError.message}`);
-                return;
+            if (isNaN(clienteId) || isNaN(estacionId)) {
+                throw new Error("IDs inválidos. Deben ser valores numéricos.");
             }
 
-            // El resto del código para subir archivos...
+            // Paso 3: Preparar la subida del archivo
+            console.log("Iniciando subida del archivo...");
             const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
             const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
             const filePath = `${clienteId}/${fileName}${fileExt}`;
 
-            // Verificar si el bucket existe
+            // Verificar si el bucket existe sin intentar crearlo
             const { data: buckets } = await supabase.storage.listBuckets();
-            const filesBucket = buckets.find((b) => b.name === "files");
 
-            if (!filesBucket) {
-                // Si el bucket no existe, intentar crearlo
-                const { error: bucketError } = await supabase.storage.createBucket("files", {
-                    public: false,
-                    allowedMimeTypes: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-                    fileSizeLimit: 50000000, // 50MB
-                });
-
-                if (bucketError) throw new Error(`Error al crear bucket: ${bucketError.message}`);
+            if (!buckets.find((b) => b.name === "files")) {
+                toast.error("El bucket 'files' no existe en Supabase. Por favor contacte al administrador.");
+                return;
             }
 
+            // Subir archivo directamente sin intentar crear el bucket
             const { data: uploadData, error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
 
             if (uploadError) {
                 console.error("Error subiendo archivo:", uploadError);
-
-                if (uploadError.message.includes("bucket")) {
-                    toast.error("Error: El bucket 'files' no existe o no tiene permisos");
-                } else {
-                    toast.error(`Error al subir archivo: ${uploadError.message}`);
-                }
+                toast.error(`Error al subir archivo: ${uploadError.message}`);
                 return;
             }
 
-            // Paso 4: Archivo subido con éxito, intentar la inserción en la BD
+            // Resto del código para inserción en base de datos
             console.log("Archivo subido exitosamente, insertando en BD...");
 
-            // Crear un objeto con todos los campos necesarios
             const insertData = {
                 id_estacion: estacionId,
                 id_norma: normaId,
                 id_cliente: clienteId,
                 fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
                 archivo_url: filePath,
-                muestra: `M-${Date.now().toString().substring(8)}`, // Generar valor para campo obligatorio
+                muestra: `M-${Date.now().toString().substring(8)}`,
             };
 
             console.log("Datos a insertar:", insertData);
@@ -326,19 +278,7 @@ const DataUploadPage = () => {
 
             if (insertError) {
                 console.error("Error al insertar en DB:", insertError);
-
-                // Análisis detallado del error para proporcionar mensajes útiles
-                if (insertError.code === "23503") {
-                    toast.error("Error: Una o más referencias no existen en la base de datos");
-                } else if (insertError.code === "23502") {
-                    toast.error("Error: Falta completar campos obligatorios");
-                } else if (insertError.code === "42P01") {
-                    toast.error("Error: La tabla no existe");
-                } else if (insertError.code === "42501") {
-                    toast.error("Error: No tiene permisos suficientes para esta acción");
-                } else {
-                    toast.error(`Error en la base de datos: ${insertError.message}`);
-                }
+                toast.error(`Error en la base de datos: ${insertError.message}`);
                 return;
             }
 
