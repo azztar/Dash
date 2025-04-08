@@ -23,8 +23,6 @@ const Login = () => {
             console.log("Intentando login con Supabase. NIT:", nit);
             // Transformar NIT a formato email para Supabase
             const email = `${nit}@ejemplo.com`;
-
-            // Usar directamente Supabase en lugar de fetch a /api/auth/login
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -36,9 +34,12 @@ const Login = () => {
 
             // Al recibir datos de usuario correctos
             if (data.user) {
-                login(data.session.access_token, data.user);
-                const from = location.state?.from?.pathname || "/dashboard";
-                navigate(from, { replace: true });
+                // Procesa el login
+                await login(data.session.access_token, data.user);
+
+                // Fuerza la navegación al dashboard independientemente del rol
+                console.log("✅ Login exitoso, redirigiendo al dashboard");
+                navigate("/dashboard", { replace: true });
             }
         } catch (error) {
             console.error("Error al iniciar sesión:", error);

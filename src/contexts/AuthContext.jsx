@@ -10,13 +10,18 @@ export function AuthProvider({ children }) {
 
     // Función para preservar rol y guardarlo en localStorage
     const persistUserWithRole = (userData, rolValue) => {
+        // Asegúrate de incluir el token de acceso
         const userWithRole = {
             ...userData,
             rol: rolValue,
         };
         console.log(`👑 Usuario con rol ${rolValue}:`, userWithRole);
+
+        // Guarda en localStorage y estado
         localStorage.setItem("user_with_role", JSON.stringify(userWithRole));
+        localStorage.setItem("user_role", rolValue); // Guarda el rol por separado
         setUser(userWithRole);
+
         return userWithRole;
     };
 
@@ -89,33 +94,32 @@ export function AuthProvider({ children }) {
             const email = userData.email;
             const nit = email.split("@")[0];
 
+            // Primero verifica si es el administrador predefinido
+            if (email === "900900900@ejemplo.com") {
+                console.log("⭐ Usuario admin predefinido, asignando rol administrador");
+                return persistUserWithRole(userData, "administrador");
+            }
+
             // Buscar en tabla personalizada
             const { data: userProfile, error } = await supabase.from("usuarios").select("rol, nombre_empresa").eq("nit", nit).single();
 
             if (error) {
                 console.error("❌ Error al obtener perfil:", error);
-
-                // Si es el admin predefinido
-                if (email === "900900900@ejemplo.com") {
-                    console.log("⭐ Asignando rol administrador");
-                    persistUserWithRole(userData, "administrador");
-                } else {
-                    // Crear usuario cliente en la tabla personalizada
-                    await checkAndCreateUser(userData, "cliente");
-                    persistUserWithRole(userData, "cliente");
-                }
+                // Crear usuario cliente en la tabla personalizada
+                await checkAndCreateUser(userData, "cliente");
+                return persistUserWithRole(userData, "cliente");
             } else {
                 console.log("✅ Perfil encontrado:", userProfile);
-                persistUserWithRole(userData, userProfile.rol);
+                return persistUserWithRole(userData, userProfile.rol);
             }
         } catch (error) {
             console.error("❌ Error en login:", error);
 
             // Si falla todo, asegurar un rol por defecto
             if (userData.email === "900900900@ejemplo.com") {
-                persistUserWithRole(userData, "administrador");
+                return persistUserWithRole(userData, "administrador");
             } else {
-                persistUserWithRole(userData, "cliente");
+                return persistUserWithRole(userData, "cliente");
             }
         }
     };
