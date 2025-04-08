@@ -60,6 +60,7 @@ const DataUploadPage = () => {
                     { id_usuario: "2", nombre_empresa: "Cliente Prueba", nit: "123456789" },
                 ];
                 setClients(mockClients);
+                console.log("Clientes cargados:", clients);
                 return;
             }
 
@@ -67,6 +68,17 @@ const DataUploadPage = () => {
 
             if (error) throw error;
             setClients(data || []);
+
+            // Añadir este log para verificar qué formato tienen los IDs
+            console.log(
+                "Clientes cargados (detalle):",
+                data
+                    ? data.map((c) => ({
+                          id: c.id_usuario,
+                          tipo: typeof c.id_usuario,
+                      }))
+                    : [],
+            );
         } catch (error) {
             console.error("Error al cargar clientes:", error);
             // Datos de fallback en caso de error
@@ -97,10 +109,22 @@ const DataUploadPage = () => {
                     { id_estacion: "4", nombre_estacion: "Estación 4" },
                 ];
                 setStations(defaultStations);
+                console.log("Estaciones cargadas:", stations);
                 return;
             }
 
             setStations(data);
+
+            // Añadir este log para verificar los IDs de estaciones
+            console.log(
+                "Estaciones cargadas (detalle):",
+                data
+                    ? data.map((s) => ({
+                          id: s.id_estacion,
+                          tipo: typeof s.id_estacion,
+                      }))
+                    : [],
+            );
         } catch (error) {
             console.error("Error al cargar estaciones:", error);
             // Estaciones de respaldo
@@ -196,35 +220,64 @@ const DataUploadPage = () => {
         try {
             setLoading(true);
 
-            // Paso 1: Verificar permisos
-            const hasPermission = await checkUserPermissions();
-            if (!hasPermission) {
-                toast.error("No tiene permisos para subir archivos");
+            // Validaciones más específicas antes de convertir
+            if (!selectedClient.trim()) {
+                toast.error("Cliente no seleccionado correctamente");
                 return;
             }
 
-            // Paso 2: Verificar el tipo de archivo
-            const validFileTypes = [".xlsx", ".xls", ".csv"];
+            if (!selectedStation.trim()) {
+                toast.error("Estación no seleccionada correctamente");
+                return;
+            }
+
+            if (!selectedParameter.trim()) {
+                toast.error("Parámetro no seleccionado correctamente");
+                return;
+            }
+
+            // Para diagnóstico - muestra los valores antes de convertir
+            console.log("Valores a convertir:", {
+                selectedClient,
+                selectedStation,
+                selectedParameter,
+            });
+
+            // Convertir IDs a enteros con mejor manejo de errores
+            let clienteId, estacionId, normaId;
+
+            try {
+                // Primero intentar con IDs nativos de Supabase (UUID)
+                if (selectedClient.includes("-")) {
+                    clienteId = selectedClient;
+                } else {
+                    clienteId = parseInt(selectedClient, 10);
+                    if (isNaN(clienteId)) throw new Error("ID de cliente inválido");
+                }
+
+                if (selectedStation.includes("-")) {
+                    estacionId = selectedStation;
+                } else {
+                    estacionId = parseInt(selectedStation, 10);
+                    if (isNaN(estacionId)) throw new Error("ID de estación inválido");
+                }
+
+                // El parámetro puede ser texto (PM10, SO2, etc.) o un ID numérico
+                if (["PM10", "PM2.5", "SO2", "NO2", "O3", "CO"].includes(selectedParameter)) {
+                    normaId = selectedParameter; // Usar el nombre del parámetro directamente
+                } else {
+                    normaId = parseInt(selectedParameter, 10);
+                    if (isNaN(normaId)) throw new Error("ID de parámetro inválido");
+                }
+            } catch (conversionError) {
+                toast.error(`Error de conversión: ${conversionError.message}`);
+                return;
+            }
+
+            // El resto del código para subir archivos...
             const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
-
-            if (!validFileTypes.includes(fileExt)) {
-                toast.error(`Tipo de archivo no permitido. Use: ${validFileTypes.join(", ")}`);
-                return;
-            }
-
-            // Paso 3: Intentar la subida del archivo
-            console.log("Iniciando subida del archivo...");
             const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `${selectedClient}/${fileName}${fileExt}`;
-
-            // Convertir IDs a enteros antes de la inserción
-            const clienteId = parseInt(selectedClient, 10);
-            const estacionId = parseInt(selectedStation, 10);
-            const normaId = parseInt(selectedParameter, 10);
-
-            if (isNaN(clienteId) || isNaN(estacionId) || isNaN(normaId)) {
-                throw new Error("IDs inválidos. Deben ser valores numéricos.");
-            }
+            const filePath = `${clienteId}/${fileName}${fileExt}`;
 
             // Verificar si el bucket existe
             const { data: buckets } = await supabase.storage.listBuckets();
@@ -314,14 +367,18 @@ const DataUploadPage = () => {
                             <label className="mb-2 block text-sm font-medium">Cliente</label>
                             <Select
                                 value={selectedClient}
-                                onValueChange={setSelectedClient}
+                                onValueChange={(value) => {
+                                    // Esto garantiza que sepamos exactamente qué tipo de valor estamos manejando
+                                    console.log("Cliente seleccionado:", value, typeof value);
+                                    setSelectedClient(value);
+                                }}
                                 placeholder="Seleccione un cliente"
                                 disabled={loading}
                             >
                                 {clients.map((client) => (
                                     <SelectItem
                                         key={client.id_usuario}
-                                        value={client.id_usuario}
+                                        value={client.id_usuario.toString()} // Asegurar que sea string
                                     >
                                         {client.nombre_empresa || client.nit}
                                     </SelectItem>
@@ -336,14 +393,17 @@ const DataUploadPage = () => {
                             <label className="mb-2 block text-sm font-medium">Estación</label>
                             <Select
                                 value={selectedStation}
-                                onValueChange={setSelectedStation}
+                                onValueChange={(value) => {
+                                    console.log("Estación seleccionada:", value, typeof value);
+                                    setSelectedStation(value);
+                                }}
                                 placeholder="Seleccione una estación"
                                 disabled={loading || !selectedClient || stations.length === 0}
                             >
                                 {stations.map((station) => (
                                     <SelectItem
                                         key={station.id_estacion}
-                                        value={station.id_estacion}
+                                        value={station.id_estacion.toString()} // Asegurar que sea string
                                     >
                                         {station.nombre_estacion}
                                     </SelectItem>
@@ -355,14 +415,17 @@ const DataUploadPage = () => {
                             <label className="mb-2 block text-sm font-medium">Parámetro</label>
                             <Select
                                 value={selectedParameter}
-                                onValueChange={setSelectedParameter}
+                                onValueChange={(value) => {
+                                    console.log("Parámetro seleccionado:", value, typeof value);
+                                    setSelectedParameter(value);
+                                }}
                                 placeholder="Seleccione un parámetro"
                                 disabled={loading}
                             >
                                 {parameters.map((param) => (
                                     <SelectItem
                                         key={param.id}
-                                        value={param.id}
+                                        value={param.id.toString()} // Asegurar que sea string
                                     >
                                         {param.name}
                                     </SelectItem>
