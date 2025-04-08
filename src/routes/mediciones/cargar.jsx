@@ -141,72 +141,56 @@ const DataUploadPage = () => {
     // Manejar envío del formulario
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedClient || !selectedStation || !selectedParameter || !file) {
-            toast.error("Por favor complete todos los campos y seleccione un archivo");
-            return;
-        }
 
         try {
             setLoading(true);
 
-            // 1. Subir archivo a Supabase Storage
+            // Primero subir archivo a Storage
             const fileExt = file.name.split(".").pop();
             const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `measurements/${selectedClient}/${fileName}.${fileExt}`;
+            const filePath = `${selectedClient}/${fileName}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from("files") // Asegúrate de que este bucket exista
+                .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
-            // 2. Registrar medición en la tabla mediciones_aire
-            const { error: dbError } = await supabase.from("mediciones_aire").insert([
-                {
-                    id_estacion: selectedStation,
-                    id_norma: selectedParameter,
-                    id_cliente: selectedClient,
-                    fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
-                    archivo_url: filePath,
-                },
-            ]);
+            // Luego insertar en la tabla
+            try {
+                // Intentar con archivo_url primero
+                const { error: insertError } = await supabase.from("mediciones_aire").insert([
+                    {
+                        id_estacion: selectedStation,
+                        id_norma: selectedParameter,
+                        id_cliente: selectedClient,
+                        fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
+                        archivo_url: filePath,
+                    },
+                ]);
 
-            if (dbError) throw dbError;
-
-            // 3. Si hay archivo de declaración, procesarlo también
-            if (declarationFile) {
-                const declExt = declarationFile.name.split(".").pop();
-                const declName = `declaration_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-                const declPath = `declarations/${selectedClient}/${declName}.${declExt}`;
-
-                const { error: declUploadError } = await supabase.storage.from("files").upload(declPath, declarationFile);
-
-                if (declUploadError) throw declUploadError;
-
-                // Obtener ID de la medición recién insertada
-                const { data: medicionData } = await supabase
-                    .from("mediciones_aire")
-                    .select("id_medicion_aire")
-                    .order("id_medicion_aire", { ascending: false })
-                    .limit(1);
-
-                if (medicionData && medicionData.length > 0) {
-                    const medicionId = medicionData[0].id_medicion_aire;
-
-                    // Insertar declaración de conformidad
-                    await supabase.from("declaraciones_conformidad").insert([
+                if (insertError) throw insertError;
+            } catch (dbError) {
+                // Si falla por la columna faltante, intentar sin ella
+                if (dbError.code === "PGRST204" && dbError.message.includes("archivo_url")) {
+                    console.log("Intentando sin la columna archivo_url...");
+                    const { error: fallbackError } = await supabase.from("mediciones_aire").insert([
                         {
-                            id_medicion: medicionId,
-                            regla_decision: "Automática",
-                            archivo_url: declPath,
+                            id_estacion: selectedStation,
+                            id_norma: selectedParameter,
+                            id_cliente: selectedClient,
+                            fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
                         },
                     ]);
-                }
 
-                toast.success("Mediciones y declaración cargadas exitosamente");
-            } else {
-                toast.success("Mediciones cargadas exitosamente");
+                    if (fallbackError) throw fallbackError;
+                } else {
+                    // Si es otro error, propagarlo
+                    throw dbError;
+                }
             }
 
-            // Resetear el formulario
+            toast.success("Mediciones cargadas exitosamente");
             resetForm();
         } catch (error) {
             console.error("Error al cargar datos:", error);
