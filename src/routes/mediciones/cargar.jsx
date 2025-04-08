@@ -138,63 +138,162 @@ const DataUploadPage = () => {
         setSelectedDate(new Date());
     };
 
+    // Función auxiliar para verificar permisos del usuario actual
+    const checkUserPermissions = async () => {
+        try {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+
+            if (!user) return false;
+
+            // Verificar si el usuario tiene rol administrador o empleado
+            const { data: userData, error } = await supabase.from("usuarios").select("rol").eq("nit", user.email?.split("@")[0]).single();
+
+            if (error || !userData) return false;
+
+            return ["administrador", "empleado"].includes(userData.rol);
+        } catch (e) {
+            console.error("Error verificando permisos:", e);
+            return false;
+        }
+    };
+
+    // Función para verificar y crear bucket si no existe
+    const checkAndCreateBucket = async (bucketName) => {
+        try {
+            // Verificar si el bucket existe
+            const { data: buckets } = await supabase.storage.listBuckets();
+            const bucket = buckets.find((b) => b.name === bucketName);
+
+            if (!bucket) {
+                // Si no existe, crearlo
+                const { error } = await supabase.storage.createBucket(bucketName, {
+                    public: false,
+                });
+
+                if (error) throw error;
+                console.log(`Bucket '${bucketName}' creado correctamente`);
+                return true;
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`Error al verificar/crear bucket '${bucketName}':`, error);
+            return false;
+        }
+    };
+
     // Manejar envío del formulario
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // Verificación básica
+        if (!selectedClient || !selectedStation || !selectedParameter || !file) {
+            toast.error("Por favor complete todos los campos y seleccione un archivo");
+            return;
+        }
 
         try {
             setLoading(true);
 
-            // Primero subir archivo a Storage
-            const fileExt = file.name.split(".").pop();
+            // Paso 1: Verificar permisos
+            const hasPermission = await checkUserPermissions();
+            if (!hasPermission) {
+                toast.error("No tiene permisos para subir archivos");
+                return;
+            }
+
+            // Paso 2: Verificar el tipo de archivo
+            const validFileTypes = [".xlsx", ".xls", ".csv"];
+            const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
+
+            if (!validFileTypes.includes(fileExt)) {
+                toast.error(`Tipo de archivo no permitido. Use: ${validFileTypes.join(", ")}`);
+                return;
+            }
+
+            // Paso 3: Intentar la subida del archivo
+            console.log("Iniciando subida del archivo...");
             const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `${selectedClient}/${fileName}.${fileExt}`;
+            const filePath = `${selectedClient}/${fileName}${fileExt}`;
 
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from("files") // Asegúrate de que este bucket exista
-                .upload(filePath, file);
+            // Convertir IDs a enteros antes de la inserción
+            const clienteId = parseInt(selectedClient, 10);
+            const estacionId = parseInt(selectedStation, 10);
+            const normaId = parseInt(selectedParameter, 10);
 
-            if (uploadError) throw uploadError;
+            if (isNaN(clienteId) || isNaN(estacionId) || isNaN(normaId)) {
+                throw new Error("IDs inválidos. Deben ser valores numéricos.");
+            }
 
-            // Luego insertar en la tabla
-            try {
-                // Intentar con archivo_url primero
-                const { error: insertError } = await supabase.from("mediciones_aire").insert([
-                    {
-                        id_estacion: selectedStation,
-                        id_norma: selectedParameter,
-                        id_cliente: selectedClient,
-                        fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
-                        archivo_url: filePath,
-                    },
-                ]);
+            // Verificar si el bucket existe
+            const { data: buckets } = await supabase.storage.listBuckets();
+            const filesBucket = buckets.find((b) => b.name === "files");
 
-                if (insertError) throw insertError;
-            } catch (dbError) {
-                // Si falla por la columna faltante, intentar sin ella
-                if (dbError.code === "PGRST204" && dbError.message.includes("archivo_url")) {
-                    console.log("Intentando sin la columna archivo_url...");
-                    const { error: fallbackError } = await supabase.from("mediciones_aire").insert([
-                        {
-                            id_estacion: selectedStation,
-                            id_norma: selectedParameter,
-                            id_cliente: selectedClient,
-                            fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
-                        },
-                    ]);
+            if (!filesBucket) {
+                // Si el bucket no existe, intentar crearlo
+                const { error: bucketError } = await supabase.storage.createBucket("files", {
+                    public: false,
+                    allowedMimeTypes: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+                    fileSizeLimit: 50000000, // 50MB
+                });
 
-                    if (fallbackError) throw fallbackError;
+                if (bucketError) throw new Error(`Error al crear bucket: ${bucketError.message}`);
+            }
+
+            const { data: uploadData, error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
+
+            if (uploadError) {
+                console.error("Error subiendo archivo:", uploadError);
+
+                if (uploadError.message.includes("bucket")) {
+                    toast.error("Error: El bucket 'files' no existe o no tiene permisos");
                 } else {
-                    // Si es otro error, propagarlo
-                    throw dbError;
+                    toast.error(`Error al subir archivo: ${uploadError.message}`);
                 }
+                return;
+            }
+
+            // Paso 4: Archivo subido con éxito, intentar la inserción en la BD
+            console.log("Archivo subido exitosamente, insertando en BD...");
+
+            // Crear un objeto con todos los campos necesarios
+            const insertData = {
+                id_estacion: estacionId,
+                id_norma: normaId,
+                id_cliente: clienteId,
+                fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
+                archivo_url: filePath,
+                muestra: `M-${Date.now().toString().substring(8)}`, // Generar valor para campo obligatorio
+            };
+
+            console.log("Datos a insertar:", insertData);
+
+            const { error: insertError } = await supabase.from("mediciones_aire").insert([insertData]);
+
+            if (insertError) {
+                console.error("Error al insertar en DB:", insertError);
+
+                // Análisis detallado del error para proporcionar mensajes útiles
+                if (insertError.code === "23503") {
+                    toast.error("Error: Una o más referencias no existen en la base de datos");
+                } else if (insertError.code === "23502") {
+                    toast.error("Error: Falta completar campos obligatorios");
+                } else if (insertError.code === "42P01") {
+                    toast.error("Error: La tabla no existe");
+                } else if (insertError.code === "42501") {
+                    toast.error("Error: No tiene permisos suficientes para esta acción");
+                } else {
+                    toast.error(`Error en la base de datos: ${insertError.message}`);
+                }
+                return;
             }
 
             toast.success("Mediciones cargadas exitosamente");
             resetForm();
         } catch (error) {
-            console.error("Error al cargar datos:", error);
-            toast.error(error.message || "Error al cargar los datos");
+            console.error("Error general:", error);
+            toast.error(error.message || "Error inesperado. Por favor, intente de nuevo.");
         } finally {
             setLoading(false);
         }
