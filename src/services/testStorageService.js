@@ -1,6 +1,28 @@
 // src/services/testStorageService.js
 import { supabase } from "@/lib/supabase";
-import { randomBytes } from "crypto";
+
+// Función para generar IDs aleatorios compatibles con el navegador
+function generateRandomId(length = 8) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    const cryptoObj = window.crypto || window.msCrypto; // Usar Web Crypto API
+
+    if (cryptoObj && cryptoObj.getRandomValues) {
+        // Usar Web Crypto API si está disponible
+        const values = new Uint32Array(length);
+        cryptoObj.getRandomValues(values);
+        for (let i = 0; i < length; i++) {
+            result += chars[values[i] % chars.length];
+        }
+    } else {
+        // Fallback a Math.random si Web Crypto no está disponible
+        for (let i = 0; i < length; i++) {
+            result += chars[Math.floor(Math.random() * chars.length)];
+        }
+    }
+
+    return result;
+}
 
 // Importar configuración SQLite (usando un import dinámico)
 let sqliteDB = null;
@@ -44,7 +66,7 @@ export const testStorageService = {
             }
 
             // Generar un nombre único para el archivo
-            const fileId = Date.now().toString(36) + randomBytes(4).toString("hex");
+            const fileId = Date.now().toString(36) + generateRandomId(8);
             const fileExt = this.getFileExtension(file.name);
             const fileName = `${metadata.clienteId}/${fileId}${fileExt}`;
 
