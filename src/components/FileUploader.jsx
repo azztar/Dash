@@ -6,6 +6,32 @@ import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { storageService } from "@/services/storageService";
 
+// Función para convertir la cadena accept a un objeto aceptado por react-dropzone v14+
+const parseAcceptProp = (acceptString) => {
+    if (!acceptString) return undefined;
+
+    const result = {};
+    const types = acceptString.split(",");
+
+    types.forEach((type) => {
+        type = type.trim();
+        // Si empieza con punto, es una extensión de archivo
+        if (type.startsWith(".")) {
+            // Convertimos a un objeto de extensiones
+            const extension = type.substring(1).toLowerCase();
+            if (!result[""]) result[""] = [];
+            result[""].push(`.${extension}`);
+        }
+        // Si contiene /, es un tipo MIME
+        else if (type.includes("/")) {
+            // Para tipos MIME, usamos el formato esperado
+            result[type] = [];
+        }
+    });
+
+    return Object.keys(result).length > 0 ? result : undefined;
+};
+
 // Componente con forwardRef para poder recibir la referencia
 const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => {
     const [uploading, setUploading] = useState(false);
@@ -95,12 +121,18 @@ const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => 
         [token, clientId, onUploadSuccess, API_URL, user],
     );
 
+    // Convertir la cadena accept al formato esperado por react-dropzone
+    const acceptOptions = parseAcceptProp(accept);
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: accept ? accept : undefined,
+        accept: acceptOptions,
         maxFiles: 1,
         disabled: uploading,
     });
+
+    // Formato de texto de tipos permitidos para mostrar al usuario
+    const acceptFormatText = accept ? accept.replace(/,/g, ", ") : "Cualquier tipo de archivo hasta 50MB";
 
     return (
         <div
@@ -128,7 +160,7 @@ const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => 
                             {isDragActive ? "Suelta el archivo aquí" : "Arrastra y suelta un archivo, o haz clic para seleccionar"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {accept ? `Formatos permitidos: ${accept}` : "Cualquier tipo de archivo hasta 50MB"}
+                            {accept ? `Formatos permitidos: ${acceptFormatText}` : "Cualquier tipo de archivo hasta 50MB"}
                         </p>
                     </>
                 )}
