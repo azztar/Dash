@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import DatePicker from "@/components/DatePicker";
 import { PageContainer } from "@/components/PageContainer";
 import { FileUp, Upload } from "lucide-react";
+import { storageService } from "@/services/storageService";
 
 const DataUploadPage = () => {
     const [selectedClient, setSelectedClient] = useState("");
@@ -236,49 +237,23 @@ const DataUploadPage = () => {
                 throw new Error("IDs inválidos. Deben ser valores numéricos.");
             }
 
-            // Paso 3: Preparar la subida del archivo
+            // Paso 1: Subir el archivo usando el servicio de almacenamiento unificado
             console.log("Iniciando subida del archivo...");
-            const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
-            const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `${clienteId}/${fileName}${fileExt}`;
+            const { success, provider, filePath } = await storageService.uploadFile(file, {
+                clienteId,
+                estacionId,
+                normaId,
+                fecha: selectedDate.toISOString().split("T")[0],
+            });
 
-            // Verificar si el bucket existe sin intentar crearlo
-            const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-
-            if (bucketsError) {
-                console.error("Error al verificar buckets:", bucketsError);
-                toast.error("Error al verificar el sistema de almacenamiento: " + bucketsError.message);
-                return;
+            if (!success) {
+                throw new Error("Error al subir el archivo");
             }
 
-            // Mostrar los buckets disponibles para depuración
-            console.log(
-                "Buckets disponibles:",
-                buckets?.map((b) => b.name),
-            );
+            console.log(`Archivo subido exitosamente con proveedor: ${provider}`);
 
-            // Verificar si existe el bucket "files"
-            if (!buckets?.find((b) => b.name === "files")) {
-                console.error("El bucket 'files' no existe");
-                toast.error(
-                    "Error de configuración: El bucket 'files' no existe en Supabase. " +
-                        "Por favor contacte al administrador para que lo cree manualmente " +
-                        "desde el panel de Supabase → Storage → New bucket → Nombre: files",
-                );
-                return;
-            }
-
-            // Si el bucket existe, continuar con la subida
-            const { data: uploadData, error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
-
-            if (uploadError) {
-                console.error("Error subiendo archivo:", uploadError);
-                toast.error(`Error al subir archivo: ${uploadError.message}`);
-                return;
-            }
-
-            // Paso 4: Archivo subido con éxito, intentar la inserción en la BD
-            console.log("Archivo subido exitosamente, insertando en BD...");
+            // Paso 2: Registrar la medición en la base de datos
+            console.log("Registrando medición en la base de datos...");
 
             // Crear un objeto con todos los campos necesarios
             const insertData = {
@@ -292,19 +267,23 @@ const DataUploadPage = () => {
 
             console.log("Datos a insertar:", insertData);
 
-            const { error: insertError } = await supabase.from("mediciones_aire").insert([insertData]);
+            // Si se usó el backend para subir el archivo, ya se registró allí
+            // Si se usó Supabase, registrar en la BD
+            if (provider === "supabase") {
+                const { error: insertError } = await supabase.from("mediciones_aire").insert([insertData]);
 
-            if (insertError) {
-                console.error("Error al insertar en BD:", insertError);
+                if (insertError) {
+                    console.error("Error al insertar en BD:", insertError);
 
-                if (insertError.code === "23503") {
-                    toast.error("Error: Una o más referencias no existen en la base de datos");
-                } else if (insertError.code === "23502") {
-                    toast.error("Error: Falta completar campos obligatorios");
-                } else {
-                    toast.error(`Error en la base de datos: ${insertError.message}`);
+                    if (insertError.code === "23503") {
+                        toast.error("Error: Una o más referencias no existen en la base de datos");
+                    } else if (insertError.code === "23502") {
+                        toast.error("Error: Falta completar campos obligatorios");
+                    } else {
+                        toast.error(`Error en la base de datos: ${insertError.message}`);
+                    }
+                    return;
                 }
-                return;
             }
 
             toast.success("Mediciones cargadas exitosamente");
