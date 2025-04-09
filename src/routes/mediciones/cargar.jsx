@@ -219,61 +219,44 @@ const DataUploadPage = () => {
         try {
             setLoading(true);
 
-            // Añadir este bloque para depuración
-            console.log("Listando todos los buckets disponibles:");
-            const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-
-            if (bucketsError) {
-                console.error("Error al listar buckets:", bucketsError);
-            } else {
-                console.log(
-                    "Buckets encontrados:",
-                    buckets.map((b) => b.name),
-                );
+            // Intentar crear el bucket primero (ignorar si ya existe)
+            try {
+                await supabase.storage.createBucket("files", {
+                    public: false,
+                    fileSizeLimit: 50000000, // 50MB
+                });
+                console.log("Bucket 'files' creado o ya existía");
+            } catch (bucketError) {
+                // Ignorar error si el bucket ya existe
+                console.log("Nota sobre bucket:", bucketError.message);
             }
 
-            // Resto del código...
-
-            // Paso 1: Verificar permisos y validar datos
-            console.log("Valores a convertir:", {
-                selectedClient,
-                selectedStation,
-                selectedParameter,
-            });
-
-            // Convertir IDs a enteros
-            const clienteId = parseInt(selectedClient, 10);
-            const estacionId = parseInt(selectedStation, 10);
-            const normaId = selectedParameter;
-
-            if (isNaN(clienteId) || isNaN(estacionId)) {
-                throw new Error("IDs inválidos. Deben ser valores numéricos.");
-            }
-
-            // Paso 3: Preparar la subida del archivo
-            console.log("Iniciando subida del archivo...");
-            const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
-            const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `${clienteId}/${fileName}${fileExt}`;
-
-            // Verificar si el bucket existe sin intentar crearlo
+            // Verificar si ahora existe el bucket
             const { data: bucketsCheck, error: bucketsCheckError } = await supabase.storage.listBuckets();
 
             if (bucketsCheckError) {
                 console.error("Error al verificar buckets:", bucketsCheckError);
-                toast.error("Error al verificar el sistema de almacenamiento");
+                toast.error("Error al verificar el sistema de almacenamiento. Detalles: " + bucketsCheckError.message);
                 return;
             }
+
+            console.log(
+                "Buckets disponibles:",
+                bucketsCheck.map((b) => b.name),
+            );
 
             if (!bucketsCheck.find((b) => b.name === "files")) {
-                console.error("El bucket 'files' no existe");
-                toast.error(
-                    "Error de configuración: El bucket 'files' no existe. Por favor contacta al administrador y pídele que lo cree manualmente en Supabase → Storage → New bucket → Nombre: files",
-                );
+                console.error("El bucket 'files' no existe a pesar de intentar crearlo");
+                toast.error("Error de configuración: No se pudo crear el bucket 'files'. Contacta al administrador.");
                 return;
             }
 
-            // Si el bucket existe, continuar con la subida
+            // Si llegamos aquí, el bucket existe y podemos continuar
+            const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
+            const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+            const filePath = `${selectedClient}/${fileName}${fileExt}`;
+
+            console.log("Subiendo archivo a:", filePath);
             const { data: uploadData, error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
 
             if (uploadError) {
@@ -286,9 +269,9 @@ const DataUploadPage = () => {
             console.log("Archivo subido exitosamente, insertando en BD...");
 
             const insertData = {
-                id_estacion: estacionId,
-                id_norma: normaId,
-                id_cliente: clienteId,
+                id_estacion: parseInt(selectedStation, 10),
+                id_norma: selectedParameter,
+                id_cliente: parseInt(selectedClient, 10),
                 fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
                 archivo_url: filePath,
                 muestra: `M-${Date.now().toString().substring(8)}`,

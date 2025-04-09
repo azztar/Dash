@@ -29,13 +29,28 @@ export const measurementService = {
     },
 
     async uploadMeasurements(formData) {
-        // Para subir archivos a Supabase Storage
         const file = formData.get("file");
+        const BUCKET_NAME = "measurements"; // Nombre consistente
+
+        console.log("Intentando subir archivo a bucket:", BUCKET_NAME);
+
+        // Listar buckets primero para depuración
+        const { data: buckets } = await supabase.storage.listBuckets();
+        console.log(
+            "Buckets disponibles:",
+            buckets?.map((b) => b.name),
+        );
 
         // Subir a Storage
-        const { data: fileData, error: fileError } = await supabase.storage.from("measurements").upload(`${Date.now()}-${file.name}`, file);
+        const { data: fileData, error: fileError } = await supabase.storage.from(BUCKET_NAME).upload(`${Date.now()}-${file.name}`, file);
 
-        if (fileError) throw fileError;
+        if (fileError) {
+            console.error("Error subiendo archivo:", fileError);
+            throw fileError;
+        }
+
+        // Log éxito
+        console.log("Archivo subido exitosamente:", fileData);
 
         // Guardar metadata en la tabla de mediciones
         const { data, error } = await supabase.from("mediciones_aire").insert([
