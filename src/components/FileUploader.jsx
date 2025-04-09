@@ -4,12 +4,13 @@ import { Upload } from "lucide-react";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
+import { storageService } from "@/services/storageService";
 
 // Componente con forwardRef para poder recibir la referencia
 const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL;
 
     // Exponemos la función openFileSelector a través de la ref
@@ -26,23 +27,42 @@ const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => 
 
     const onDrop = useCallback(
         async (acceptedFiles) => {
-            if (!clientId) {
-                toast.error("Por favor seleccione un cliente");
-                return;
-            }
+            if (acceptedFiles.length === 0) return;
 
             const file = acceptedFiles[0];
-            if (!file) return;
+            console.log("Archivo seleccionado:", file.name);
 
             setUploading(true);
-            const formData = new FormData();
-            formData.append("file", file);
-            // Cambiar el nombre del parámetro para que coincida con el backend
-            formData.append("id_cliente", clientId);
-
             try {
-                // Añadir log para depuración
-                console.log("Enviando archivo:", file.name, "para cliente ID:", clientId);
+                // 1. Primero intentamos subir al almacenamiento en la nube (Firebase o Supabase)
+                console.log("Enviando archivo a almacenamiento en la nube...");
+
+                // Identificar el cliente correcto (podría ser el usuario actual o un ID específico)
+                const effectiveClientId = clientId || (user ? user.id : "default");
+
+                const storageResult = await storageService.uploadFile(file, {
+                    clienteId: effectiveClientId,
+                    // No tenemos estación ni otros metadatos aquí
+                });
+
+                if (!storageResult.success) {
+                    throw new Error("Error al subir el archivo al almacenamiento en la nube");
+                }
+
+                console.log("Archivo subido a la nube correctamente:", storageResult);
+
+                // 2. Ahora registramos el archivo en la base de datos a través del backend
+                const formData = new FormData();
+                formData.append("file", file);
+
+                if (clientId) {
+                    formData.append("id_cliente", clientId);
+                }
+
+                // Añadir información del almacenamiento en la nube
+                formData.append("storage_provider", storageResult.provider);
+                formData.append("storage_path", storageResult.filePath);
+                formData.append("storage_url", storageResult.fileUrl);
 
                 const response = await axios.post(`${API_URL}/api/files/upload`, formData, {
                     headers: {
@@ -52,94 +72,71 @@ const FileUploader = forwardRef(({ onUploadSuccess, clientId, accept }, ref) => 
                 });
 
                 if (response.data.success) {
-                    onUploadSuccess && onUploadSuccess(response.data);
-                    toast.success("Archivo subido correctamente");
+                    console.log("Archivo registrado correctamente en la base de datos");
+                    toast.success("Archivo cargado con éxito");
+                    if (onUploadSuccess) {
+                        // Pasar tanto la información del backend como la del almacenamiento
+                        onUploadSuccess({
+                            ...response.data,
+                            storage: storageResult,
+                        });
+                    }
                 } else {
-                    throw new Error(response.data.message || "Error al subir el archivo");
+                    // Si la API devuelve éxito=false
+                    throw new Error(response.data.message || "Error desconocido al registrar el archivo");
                 }
             } catch (error) {
-                console.error("Error completo:", error);
-                // Mostrar más detalles del error
-                const errorMsg = error.response?.data?.message || error.message || "Error al cargar el archivo";
-                toast.error(errorMsg);
+                console.error("Error al subir archivo:", error);
+                toast.error(error.message || "Error al cargar el archivo. Intente nuevamente.");
             } finally {
                 setUploading(false);
             }
         },
-        [clientId, token, API_URL, onUploadSuccess],
+        [token, clientId, onUploadSuccess, API_URL, user],
     );
 
-    // Creamos un input file independiente para más control
-    const handleNativeInputChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            onDrop([file]);
-        }
-    };
-
-    // Configuración correcta de los tipos MIME para react-dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: {
-            "application/zip": [".zip"],
-            "application/x-rar-compressed": [".rar"],
-            "application/x-7z-compressed": [".7z"],
-            "application/vnd.google-earth.kmz": [".kmz"],
-            "application/vnd.google-earth.kml+xml": [".kml"],
-            // No usar cadena vacía como clave
-            "application/octet-stream": [".zip", ".rar", ".7z", ".kmz", ".kml"],
-        },
-        multiple: false,
-        // No filtramos estrictamente por tipo MIME para mejor compatibilidad
-        noKeyboard: true,
-        noClick: false,
-        noDrag: false,
-        noDragEventsBubbling: false,
+        accept: accept ? accept : undefined,
+        maxFiles: 1,
+        disabled: uploading,
     });
 
     return (
-        <>
-            {/* Input nativo oculto para abrir mediante JavaScript */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleNativeInputChange}
-                style={{ display: "none" }}
-                accept=".zip,.rar,.7z,.kmz,.kml"
-            />
+        <div
+            {...getRootProps()}
+            className={`cursor-pointer rounded-lg border-2 border-dashed p-6 transition-colors ${
+                isDragActive ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-300 dark:border-gray-700"
+            } ${uploading ? "cursor-not-allowed opacity-50" : ""}`}
+        >
+            <div className="flex flex-col items-center justify-center text-center">
+                <Upload className="mb-3 h-12 w-12 text-gray-400" />
+                <input
+                    {...getInputProps()}
+                    ref={fileInputRef}
+                    disabled={uploading}
+                />
 
-            {/* Botón explícito separado para seleccionar archivos */}
-            <button
-                type="button"
-                className="mb-4 w-full rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    if (fileInputRef.current) {
-                        fileInputRef.current.click();
-                    }
-                }}
-            >
-                Seleccionar archivo (ZIP, RAR, 7Z, KMZ)
-            </button>
-
-            {/* Área de drop zone */}
-            <div
-                {...getRootProps()}
-                className={`relative cursor-pointer rounded-lg border-2 border-dashed p-6 transition-colors ${
-                    isDragActive ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                } dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700`}
-            >
-                <div className="flex flex-col items-center">
-                    <Upload className={`mb-2 h-10 w-10 ${uploading ? "animate-pulse text-blue-500" : "text-gray-400"}`} />
-                    <p className="mb-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {uploading ? "Subiendo archivo..." : isDragActive ? "Suelte el archivo aquí" : "Arrastre y suelte archivos aquí"}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Tipos permitidos: ZIP, RAR, 7Z, KMZ, KML</p>
-                </div>
+                {uploading ? (
+                    <div className="text-center">
+                        <div className="mb-2 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-e-transparent text-blue-500"></div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Subiendo archivo...</p>
+                    </div>
+                ) : (
+                    <>
+                        <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            {isDragActive ? "Suelta el archivo aquí" : "Arrastra y suelta un archivo, o haz clic para seleccionar"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {accept ? `Formatos permitidos: ${accept}` : "Cualquier tipo de archivo hasta 50MB"}
+                        </p>
+                    </>
+                )}
             </div>
-        </>
+        </div>
     );
 });
 
 FileUploader.displayName = "FileUploader";
+
 export default FileUploader;

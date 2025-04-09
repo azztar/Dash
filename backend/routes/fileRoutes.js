@@ -19,6 +19,60 @@ const ensureUploadDirExists = () => {
 // Crear directorio base
 ensureUploadDirExists();
 
+// Función para limpiar archivos antiguos (mantener espacio de almacenamiento bajo control)
+const cleanupOldFiles = async (maxDays = 90) => {
+    try {
+        console.log(`Iniciando limpieza de archivos más antiguos que ${maxDays} días...`);
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - maxDays);
+
+        // Buscar archivos más antiguos que la fecha límite
+        const [oldFiles] = await db.query("SELECT id_archivo, ruta_archivo FROM archivos WHERE fecha_carga < ?", [
+            cutoffDate.toISOString().split("T")[0],
+        ]);
+
+        if (oldFiles.length === 0) {
+            console.log("No se encontraron archivos antiguos para limpiar");
+            return;
+        }
+
+        console.log(`Se encontraron ${oldFiles.length} archivos antiguos para limpiar`);
+
+        // Eliminar archivos antiguos
+        let deletedCount = 0;
+        for (const file of oldFiles) {
+            try {
+                // Verificar si el archivo existe antes de intentar eliminarlo
+                if (fs.existsSync(file.ruta_archivo)) {
+                    fs.unlinkSync(file.ruta_archivo);
+                    await db.query("DELETE FROM archivos WHERE id_archivo = ?", [file.id_archivo]);
+                    deletedCount++;
+                } else {
+                    // Si el archivo no existe, solo eliminar el registro
+                    await db.query("DELETE FROM archivos WHERE id_archivo = ?", [file.id_archivo]);
+                }
+            } catch (fileError) {
+                console.error(`Error al eliminar archivo ${file.id_archivo}:`, fileError);
+            }
+        }
+
+        console.log(`Limpieza completada: ${deletedCount} archivos eliminados`);
+    } catch (error) {
+        console.error("Error durante la limpieza de archivos antiguos:", error);
+    }
+};
+
+// Ejecutar limpieza al iniciar el servidor
+cleanupOldFiles();
+
+// Configurar una limpieza programada (cada 24 horas)
+setInterval(
+    () => {
+        cleanupOldFiles();
+    },
+    24 * 60 * 60 * 1000,
+);
+
 // Configuración de multer optimizada para archivos binarios
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -71,7 +125,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
     storage,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    limits: { fileSize: 25 * 1024 * 1024 }, // Reducido a 25MB para ahorrar espacio
     fileFilter,
 });
 
