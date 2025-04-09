@@ -30,7 +30,7 @@ export const measurementService = {
 
     async uploadMeasurements(formData) {
         const file = formData.get("file");
-        const BUCKET_NAME = "measurements"; // Nombre consistente
+        const BUCKET_NAME = "files"; // Cambiado de "measurements" a "files" para ser consistente
 
         console.log("Intentando subir archivo a bucket:", BUCKET_NAME);
 
@@ -41,7 +41,15 @@ export const measurementService = {
             buckets?.map((b) => b.name),
         );
 
-        // Subir a Storage
+        // Intentar verificar si el bucket existe, sin crear uno nuevo
+        if (!buckets?.find((b) => b.name === BUCKET_NAME)) {
+            console.error(`El bucket '${BUCKET_NAME}' no existe en Supabase`);
+            throw new Error(
+                `El bucket '${BUCKET_NAME}' no existe. Por favor contacte al administrador para crear el bucket manualmente en Supabase.`,
+            );
+        }
+
+        // Subir a Storage usando el bucket existente
         const { data: fileData, error: fileError } = await supabase.storage.from(BUCKET_NAME).upload(`${Date.now()}-${file.name}`, file);
 
         if (fileError) {

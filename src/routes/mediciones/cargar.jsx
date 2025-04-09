@@ -219,44 +219,56 @@ const DataUploadPage = () => {
         try {
             setLoading(true);
 
-            // Intentar crear el bucket primero (ignorar si ya existe)
-            try {
-                await supabase.storage.createBucket("files", {
-                    public: false,
-                    fileSizeLimit: 50000000, // 50MB
-                });
-                console.log("Bucket 'files' creado o ya existía");
-            } catch (bucketError) {
-                // Ignorar error si el bucket ya existe
-                console.log("Nota sobre bucket:", bucketError.message);
+            // Validaciones y conversiones de tipos
+            console.log("Valores a convertir:", {
+                selectedClient,
+                selectedStation,
+                selectedParameter,
+            });
+
+            // Convertir IDs a enteros
+            const clienteId = parseInt(selectedClient, 10);
+            const estacionId = parseInt(selectedStation, 10);
+            // El parámetro podría ser texto (PM10, PM2.5, etc.) o un ID numérico
+            const normaId = selectedParameter;
+
+            if (isNaN(clienteId) || isNaN(estacionId)) {
+                throw new Error("IDs inválidos. Deben ser valores numéricos.");
             }
 
-            // Verificar si ahora existe el bucket
-            const { data: bucketsCheck, error: bucketsCheckError } = await supabase.storage.listBuckets();
-
-            if (bucketsCheckError) {
-                console.error("Error al verificar buckets:", bucketsCheckError);
-                toast.error("Error al verificar el sistema de almacenamiento. Detalles: " + bucketsCheckError.message);
-                return;
-            }
-
-            console.log(
-                "Buckets disponibles:",
-                bucketsCheck.map((b) => b.name),
-            );
-
-            if (!bucketsCheck.find((b) => b.name === "files")) {
-                console.error("El bucket 'files' no existe a pesar de intentar crearlo");
-                toast.error("Error de configuración: No se pudo crear el bucket 'files'. Contacta al administrador.");
-                return;
-            }
-
-            // Si llegamos aquí, el bucket existe y podemos continuar
+            // Paso 3: Preparar la subida del archivo
+            console.log("Iniciando subida del archivo...");
             const fileExt = `.${file.name.split(".").pop().toLowerCase()}`;
             const fileName = `measurement_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            const filePath = `${selectedClient}/${fileName}${fileExt}`;
+            const filePath = `${clienteId}/${fileName}${fileExt}`;
 
-            console.log("Subiendo archivo a:", filePath);
+            // Verificar si el bucket existe sin intentar crearlo
+            const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+
+            if (bucketsError) {
+                console.error("Error al verificar buckets:", bucketsError);
+                toast.error("Error al verificar el sistema de almacenamiento: " + bucketsError.message);
+                return;
+            }
+
+            // Mostrar los buckets disponibles para depuración
+            console.log(
+                "Buckets disponibles:",
+                buckets?.map((b) => b.name),
+            );
+
+            // Verificar si existe el bucket "files"
+            if (!buckets?.find((b) => b.name === "files")) {
+                console.error("El bucket 'files' no existe");
+                toast.error(
+                    "Error de configuración: El bucket 'files' no existe en Supabase. " +
+                        "Por favor contacte al administrador para que lo cree manualmente " +
+                        "desde el panel de Supabase → Storage → New bucket → Nombre: files",
+                );
+                return;
+            }
+
+            // Si el bucket existe, continuar con la subida
             const { data: uploadData, error: uploadError } = await supabase.storage.from("files").upload(filePath, file);
 
             if (uploadError) {
@@ -265,16 +277,17 @@ const DataUploadPage = () => {
                 return;
             }
 
-            // Resto del código para inserción en base de datos
+            // Paso 4: Archivo subido con éxito, intentar la inserción en la BD
             console.log("Archivo subido exitosamente, insertando en BD...");
 
+            // Crear un objeto con todos los campos necesarios
             const insertData = {
-                id_estacion: parseInt(selectedStation, 10),
-                id_norma: selectedParameter,
-                id_cliente: parseInt(selectedClient, 10),
+                id_estacion: estacionId,
+                id_norma: normaId,
+                id_cliente: clienteId,
                 fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
                 archivo_url: filePath,
-                muestra: `M-${Date.now().toString().substring(8)}`,
+                muestra: `M-${Date.now().toString().substring(8)}`, // Generar valor para campo obligatorio
             };
 
             console.log("Datos a insertar:", insertData);
@@ -282,8 +295,15 @@ const DataUploadPage = () => {
             const { error: insertError } = await supabase.from("mediciones_aire").insert([insertData]);
 
             if (insertError) {
-                console.error("Error al insertar en DB:", insertError);
-                toast.error(`Error en la base de datos: ${insertError.message}`);
+                console.error("Error al insertar en BD:", insertError);
+
+                if (insertError.code === "23503") {
+                    toast.error("Error: Una o más referencias no existen en la base de datos");
+                } else if (insertError.code === "23502") {
+                    toast.error("Error: Falta completar campos obligatorios");
+                } else {
+                    toast.error(`Error en la base de datos: ${insertError.message}`);
+                }
                 return;
             }
 

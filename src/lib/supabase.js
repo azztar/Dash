@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         persistSession: true,
     },
+    debug: true, // Activar modo debug para obtener más información sobre errores
 });
 
 // Función para verificar si un usuario existe en la tabla de usuarios personalizada
@@ -35,5 +36,35 @@ export const checkAndCreateUser = async (auth_user, role = "cliente") => {
     } catch (err) {
         console.error("Error verificando/creando usuario:", err);
         return null;
+    }
+};
+
+// Nueva función para verificar e informar sobre buckets
+export const checkBuckets = async () => {
+    try {
+        const { data: buckets, error } = await supabase.storage.listBuckets();
+
+        if (error) {
+            console.error("Error al listar buckets:", error);
+            return { success: false, error };
+        }
+
+        console.log(
+            "Buckets disponibles:",
+            buckets?.map((b) => b.name),
+        );
+
+        // Verificar si existe el bucket "files"
+        const filesBucket = buckets?.find((b) => b.name === "files");
+
+        return {
+            success: true,
+            buckets,
+            filesBucketExists: !!filesBucket,
+            totalBuckets: buckets?.length || 0,
+        };
+    } catch (err) {
+        console.error("Error verificando buckets:", err);
+        return { success: false, error: err };
     }
 };
