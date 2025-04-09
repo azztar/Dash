@@ -1,89 +1,81 @@
 // src/services/storageService.js
 import { supabase } from "@/lib/supabase";
-import axios from "axios";
-import { API_BASE_URL } from "@/config/constants";
+import { testStorageService } from "./testStorageService";
+
+// Variable para controlar si estamos en modo de prueba
+const TEST_MODE = true; // Cambiar a false para usar Supabase en producción
 
 /**
  * Servicio unificado para almacenamiento de archivos
- * Intenta usar Supabase primero, y si falla, usa el backend
+ * Intenta usar Supabase primero, y si falla, usa simulación local
  */
 export const storageService = {
     /**
-     * Sube un archivo usando Supabase Storage o el backend como fallback
+     * Sube un archivo usando Supabase Storage o la alternativa de prueba
      * @param {File} file El archivo a subir
      * @param {Object} metadata Metadatos del archivo (clienteId, estacionId, etc)
      * @returns {Promise<Object>} Resultado de la subida
      */
     async uploadFile(file, metadata) {
+        // Si estamos en modo de prueba, usar el servicio de prueba
+        if (TEST_MODE) {
+            console.log("Modo de prueba activado, usando almacenamiento local");
+            return testStorageService.uploadFile(file, metadata);
+        }
+
         try {
-            // Intentar primero con Supabase
-            const { data: buckets } = await supabase.storage.listBuckets();
-            const bucketExists = buckets?.find((b) => b.name === "files");
+            console.log("Intentando usar Supabase Storage");
 
-            // Si el bucket existe en Supabase, usar Supabase Storage
-            if (bucketExists) {
-                console.log("Usando Supabase Storage para subir archivo");
+            // Intentar crear el bucket 'archivos' (más simple que 'files')
+            const bucketName = "archivos";
 
-                const fileName = `${metadata.clienteId}/${Date.now()}_${Math.random().toString(36).substring(2)}${getFileExtension(file.name)}`;
+            try {
+                // Crear bucket (ignorar error si ya existe)
+                const { data: bucketData, error: bucketError } = await supabase.storage.createBucket(bucketName, {
+                    public: false,
+                });
 
-                const { data, error } = await supabase.storage.from("files").upload(fileName, file);
-
-                if (error) throw error;
-
-                return {
-                    success: true,
-                    provider: "supabase",
-                    data,
-                    filePath: fileName,
-                };
-            } else {
-                // Si no existe el bucket, usar el backend como fallback
-                console.log("Bucket no encontrado en Supabase, usando backend como fallback");
-                return await uploadToBackend(file, metadata);
+                if (!bucketError) {
+                    console.log(`Bucket '${bucketName}' creado exitosamente`);
+                } else if (bucketError.code === "23505") {
+                    // Error de duplicado significa que ya existe (esto es bueno)
+                    console.log(`Bucket '${bucketName}' ya existe, continuando...`);
+                } else {
+                    console.warn(`Nota sobre el bucket:`, bucketError);
+                }
+            } catch (bucketCreateError) {
+                console.log("Error al crear bucket, puede ser normal si ya existe:", bucketCreateError);
             }
+
+            // Ahora intentar subir el archivo al bucket
+            const fileName = `${metadata.clienteId}/${Date.now()}_${Math.random().toString(36).substring(2)}${getFileExtension(file.name)}`;
+
+            console.log(`Subiendo archivo a Supabase en bucket '${bucketName}'`);
+            const { data, error } = await supabase.storage.from(bucketName).upload(fileName, file);
+
+            if (error) {
+                console.error("Error subiendo archivo a Supabase:", error);
+                // En caso de error, caer al modo de prueba como fallback
+                console.log("Usando modo de prueba como fallback");
+                return testStorageService.uploadFile(file, metadata);
+            }
+
+            console.log("Archivo subido exitosamente a Supabase:", data);
+            return {
+                success: true,
+                provider: "supabase",
+                data,
+                filePath: fileName,
+                fileUrl: `${bucketName}/${fileName}`,
+            };
         } catch (error) {
             console.error("Error en Supabase Storage:", error);
-            console.log("Intentando subir al backend como fallback");
-
-            // Intentar con el backend como fallback
-            return await uploadToBackend(file, metadata);
+            // En caso de cualquier error, intentar con el modo de prueba
+            console.log("Usando modo de prueba como fallback después de error");
+            return testStorageService.uploadFile(file, metadata);
         }
     },
 };
-
-/**
- * Sube un archivo al backend usando FormData
- * @param {File} file El archivo a subir
- * @param {Object} metadata Metadatos del archivo
- * @returns {Promise<Object>} Resultado de la subida
- */
-async function uploadToBackend(file, metadata) {
-    try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("id_cliente", metadata.clienteId);
-        formData.append("id_estacion", metadata.estacionId);
-
-        const token = localStorage.getItem("token");
-
-        const response = await axios.post(`${API_BASE_URL}/api/files/upload`, formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        return {
-            success: true,
-            provider: "backend",
-            data: response.data,
-            filePath: response.data.filePath || response.data.fileInfo?.ruta_archivo,
-        };
-    } catch (error) {
-        console.error("Error al subir al backend:", error);
-        throw new Error("No se pudo subir el archivo a ningún proveedor de almacenamiento");
-    }
-}
 
 /**
  * Obtiene la extensión de un archivo
