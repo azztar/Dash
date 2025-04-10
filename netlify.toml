@@ -7,7 +7,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://tu-backend-api.com/api/:splat"
+  to = "https://zmgzyuanmuvjvkjpyftq.supabase.co/rest/v1/:splat"
   status = 200
   force = true
 
