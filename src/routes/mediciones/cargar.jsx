@@ -24,13 +24,15 @@ const Cargar = () => {
         const fetchClientes = async () => {
             if (user?.rol === "administrador") {
                 try {
-                    // Simulación de datos (reemplazar con llamada API real)
-                    setClientes([
-                        { id: "1", nombre: "Cliente A" },
-                        { id: "2", nombre: "Cliente B" },
-                        { id: "3", nombre: "Cliente C" },
-                        { id: "900900900", nombre: "Empresa de Prueba" },
-                    ]);
+                    const response = await apiClient.get("/api/clients");
+                    if (response.data && response.data.success) {
+                        setClientes(
+                            response.data.data.map((client) => ({
+                                id: client.id_usuario,
+                                nombre: client.nombre_empresa,
+                            })),
+                        );
+                    }
                 } catch (error) {
                     console.error("Error al cargar clientes:", error);
                     toast.error("Error al cargar la lista de clientes");
@@ -50,11 +52,13 @@ const Cargar = () => {
         const fetchEstaciones = async () => {
             if (selectedClient) {
                 try {
-                    // Simulación de datos (reemplazar con llamada API real)
+                    // Aquí deberíamos solo listar las estaciones existentes para este cliente
+                    // O mostrar solo las opciones numéricas (1-4) que luego se crearán
                     setEstaciones([
-                        { id: "101", nombre: "Estación 1" },
-                        { id: "102", nombre: "Estación 2" },
-                        { id: "103", nombre: "Estación 3" },
+                        { id: "1", nombre: "Estación 1" },
+                        { id: "2", nombre: "Estación 2" },
+                        { id: "3", nombre: "Estación 3" },
+                        { id: "4", nombre: "Estación 4" },
                     ]);
                 } catch (error) {
                     console.error("Error al cargar estaciones:", error);
@@ -72,7 +76,7 @@ const Cargar = () => {
     useEffect(() => {
         setParametros([
             { id: "PM10", nombre: "PM10" },
-            { id: "PM25", nombre: "PM2.5" },
+            { id: "PM2.5", nombre: "PM2.5" }, // Corregido con punto
             { id: "O3", nombre: "Ozono (O₃)" },
             { id: "NO2", nombre: "Dióxido de Nitrógeno (NO₂)" },
             { id: "SO2", nombre: "Dióxido de Azufre (SO₂)" },
@@ -107,59 +111,25 @@ const Cargar = () => {
         try {
             setLoading(true);
 
-            // Validaciones y conversiones de tipos
-            console.log("Valores a convertir:", {
-                selectedClient,
-                selectedStation,
-                selectedParameter,
-            });
+            // Crear FormData para el envío
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("selectedClient", selectedClient);
+            formData.append("stationId", selectedStation);
+            formData.append("parameterId", selectedParameter);
+            formData.append("fecha", selectedDate.toISOString().split("T")[0]);
 
-            // Convertir IDs a enteros
-            const clienteId = parseInt(selectedClient, 10);
-            const estacionId = parseInt(selectedStation, 10);
-            // El parámetro podría ser texto (PM10, PM2.5, etc.) o un ID numérico
-            const normaId = selectedParameter;
+            // Usar el servicio de base de datos para la carga
+            const result = await databaseService.uploadMeasurement(formData);
 
-            if (isNaN(clienteId) || isNaN(estacionId)) {
-                throw new Error("IDs inválidos. Deben ser valores numéricos.");
+            if (result.success) {
+                toast.success("Archivo cargado exitosamente");
+                resetForm();
+            } else {
+                throw new Error(result.message || "Error al cargar el archivo");
             }
-
-            // Usar el servicio de almacenamiento (solo API)
-            console.log("Iniciando subida del archivo...");
-            const uploadResult = await storageService.uploadFile(file, {
-                clienteId,
-                estacionId,
-                normaId,
-                fecha: selectedDate.toISOString().split("T")[0],
-            });
-
-            if (!uploadResult.success) {
-                throw new Error("Error al subir el archivo");
-            }
-
-            console.log(`Archivo subido exitosamente con proveedor: ${uploadResult.provider}`);
-            console.log("Resultado de la subida:", uploadResult);
-
-            // Registrar la medición en la base de datos
-            console.log("Registrando medición en la base de datos...");
-
-            // Crear un objeto con todos los campos necesarios
-            const insertData = {
-                id_estacion: estacionId,
-                id_norma: normaId,
-                id_cliente: clienteId,
-                fecha_inicio_muestra: selectedDate.toISOString().split("T")[0],
-                archivo_url: uploadResult.fileUrl || uploadResult.filePath,
-                muestra: `M-${Date.now().toString().substring(8)}`, // Generar valor para campo obligatorio
-            };
-
-            console.log("Datos a insertar:", insertData);
-
-            // Notificar éxito al usuario
-            toast.success("Archivo cargado exitosamente");
-            resetForm();
         } catch (error) {
-            console.error("Error general:", error);
+            console.error("Error al cargar archivo:", error);
             toast.error(error.message || "Error inesperado. Por favor, intente de nuevo.");
         } finally {
             setLoading(false);
