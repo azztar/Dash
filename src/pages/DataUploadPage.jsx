@@ -219,7 +219,9 @@ const DataUploadPage = () => {
                                         </div>
                                     </div>
 
-                                    <div className="relative">
+                                    <div className="relative z-10">
+                                        {" "}
+                                        {/* z-10 para selects/dropdowns */}
                                         <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Parámetro</label>
                                         <div className="relative z-10">
                                             <Select
@@ -265,6 +267,8 @@ const DataUploadPage = () => {
                                 <div className="space-y-4">
                                     <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Mediciones</h3>
                                     <div className="relative z-0">
+                                        {" "}
+                                        {/* z-0 para elementos estáticos */}
                                         <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700">
                                             <div className="flex flex-col items-center justify-center pb-6 pt-5">
                                                 <Upload className="mb-3 h-8 w-8 text-gray-400 dark:text-gray-300" />
@@ -289,13 +293,15 @@ const DataUploadPage = () => {
                                 <div className="space-y-4">
                                     <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">Declaraciones de Conformidad</h3>
                                     <div className="relative z-0">
-                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100">
+                                        {" "}
+                                        {/* z-0 para elementos estáticos */}
+                                        <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700">
                                             <div className="flex flex-col items-center justify-center pb-6 pt-5">
-                                                <Upload className="mb-3 h-8 w-8 text-gray-400" />
-                                                <p className="mb-2 text-sm text-gray-500">
+                                                <Upload className="mb-3 h-8 w-8 text-gray-400 dark:text-gray-300" />
+                                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
                                                     <span className="font-semibold">Click para seleccionar archivo de declaraciones</span>
                                                 </p>
-                                                <p className="text-xs text-gray-500">XLSX, XLS (MAX. 10MB)</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">XLSX, XLS (MAX. 10MB)</p>
                                             </div>
                                             <input
                                                 type="file"
@@ -306,7 +312,9 @@ const DataUploadPage = () => {
                                             />
                                         </label>
                                         {declarationFile && (
-                                            <p className="mt-2 text-sm text-gray-500">Archivo de declaraciones: {declarationFile.name}</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Archivo de declaraciones: {declarationFile.name}
+                                            </p>
                                         )}
                                     </div>
                                 </div>

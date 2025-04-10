@@ -26,7 +26,6 @@
     "date-fns-tz": "^3.2.0",
     "fast-xml-parser": "^5.1.0",
     "file-type": "^20.3.0",
-    "firebase": "^11.6.0",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.474.0",
