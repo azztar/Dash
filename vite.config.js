@@ -1,24 +1,38 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { writeFileSync } from "fs";
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [
+        react(),
+        {
+            name: "copy-htaccess",
+            closeBundle() {
+                // Copia el archivo .htaccess a la carpeta dist
+                const htaccessContent = `<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  RewriteRule . /index.html [L]
+</IfModule>`;
+                writeFileSync("dist/.htaccess", htaccessContent);
+            },
+        },
+    ],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),
         },
     },
-    server: {
-        port: 3001,
-        proxy: {
-            "/api": {
-                target: "http://localhost:5000",
-                changeOrigin: true,
-                secure: false,
-                ws: true,
-                // Sin rewrite para usar la URL completa
-            },
-        },
+    build: {
+        outDir: "dist",
+        assetsDir: "assets",
+        emptyOutDir: true,
+        sourcemap: false,
     },
+    base: "/",
 });

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRightIcon } from "@heroicons/react/24/solid";
 import AuthLayout from "@/components/AuthLayout";
-import { supabase } from "@/lib/supabase"; // Importa supabase
+import { authService } from "@/services/authService";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -20,24 +20,16 @@ const Login = () => {
         setIsSubmitting(true);
 
         try {
-            console.log("Intentando login con Supabase. NIT:", nit);
-            // Transformar NIT a formato email para Supabase
-            const email = `${nit}@ejemplo.com`;
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
+            console.log("Intentando login. NIT:", nit);
 
-            console.log("Respuesta de Supabase:", data, error);
+            // Realizar login con backend
+            const response = await authService.login(nit, password);
 
-            if (error) throw error;
+            // Si hay token y datos de usuario
+            if (response.token && response.user) {
+                // Procesa el login en el contexto de Auth
+                await login(response.token, response.user);
 
-            // Al recibir datos de usuario correctos
-            if (data.user) {
-                // Procesa el login
-                await login(data.session.access_token, data.user);
-
-                // Fuerza la navegación al dashboard independientemente del rol
                 console.log("✅ Login exitoso, redirigiendo al dashboard");
                 navigate("/dashboard", { replace: true });
             }

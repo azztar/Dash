@@ -1,25 +1,21 @@
-const mysql = require("mysql2/promise");
+import { Sequelize } from "sequelize";
+import dotenv from "dotenv";
 
-const pool = mysql.createPool({
+dotenv.config();
+
+// Configuración para conectarse a MySQL de cPanel
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
     host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    charset: "utf8mb4",
+    dialect: "mysql",
+    port: process.env.DB_PORT || 3306,
+    logging: process.env.NODE_ENV === "development" ? console.log : false,
+    dialectOptions: {
+        // Para conexiones SSL (si es necesario)
+        // ssl: {
+        //     require: true,
+        //     rejectUnauthorized: false
+        // }
+    },
 });
 
-// Verificar la conexión
-pool.getConnection()
-    .then((connection) => {
-        console.log("Base de datos conectada exitosamente");
-        connection.release();
-    })
-    .catch((err) => {
-        console.error("Error al conectar a la base de datos:", err);
-    });
-
-module.exports = pool;
+export default sequelize;

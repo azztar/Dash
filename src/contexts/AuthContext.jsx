@@ -1,82 +1,41 @@
-import React, { createContext, useState, useEffect, useContext, useRef } from "react";
-import { supabase, checkAndCreateUser } from "@/lib/supabase";
+import React, { createContext, useState, useContext, useEffect, useRef } from "react";
+import { authService } from "@/services/authService";
 
 const AuthContext = createContext();
+
+export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const initialCheckDone = useRef(false);
 
-    // Función para preservar rol y guardarlo en localStorage
-    const persistUserWithRole = (userData, rolValue) => {
-        // Asegúrate de incluir el token de acceso
-        const userWithRole = {
-            ...userData,
-            rol: rolValue,
-        };
-        console.log(`👑 Usuario con rol ${rolValue}:`, userWithRole);
-
-        // Guarda en localStorage y estado
-        localStorage.setItem("user_with_role", JSON.stringify(userWithRole));
-        localStorage.setItem("user_role", rolValue); // Guarda el rol por separado
-        setUser(userWithRole);
-
-        return userWithRole;
-    };
-
-    // Verificar sesión al cargar
+    // Verificar sesión actual al cargar
     useEffect(() => {
-        if (initialCheckDone.current) return;
-
         const checkSession = async () => {
+            if (initialCheckDone.current) return;
+
             try {
-                setLoading(true);
-                console.log("⏳ Verificando token...");
+                const token = localStorage.getItem("token");
 
-                // 1. Verificar sesión en Supabase
-                const { data } = await supabase.auth.getSession();
-
-                console.log("🔑 Enviando token:", data.session?.access_token ? data.session.access_token.substring(0, 10) + "..." : "No hay token");
-
-                if (!data.session) {
-                    console.log("❌ No hay sesión activa");
+                if (!token) {
+                    console.log("❌ No hay token guardado");
                     setLoading(false);
                     initialCheckDone.current = true;
                     return;
                 }
 
-                console.log("✅ Respuesta de verificación:", data);
+                // Verificar token con backend
+                const response = await authService.getProfile();
 
-                // 2. Obtener rol desde Supabase
-                const email = data.session.user.email;
-                const nit = email.split("@")[0];
-
-                console.log("👤 Usuario autenticado:", nit);
-
-                // Buscar en tabla personalizada
-                const { data: userData, error } = await supabase.from("usuarios").select("*").eq("nit", nit).single();
-
-                if (error) {
-                    console.error("❌ Error al obtener datos de usuario:", error);
-
-                    // Si el usuario es administrador predefinido
-                    if (email === "900900900@ejemplo.com") {
-                        console.log("⭐ Usuario admin predefinido, asignando rol administrador");
-                        persistUserWithRole(data.session.user, "administrador");
-                    } else {
-                        // Crear usuario cliente en la tabla personalizada
-                        await checkAndCreateUser(data.session.user, "cliente");
-                        persistUserWithRole(data.session.user, "cliente");
-                    }
-                } else {
-                    console.log("✅ Datos de usuario encontrados:", userData);
-                    persistUserWithRole(data.session.user, userData.rol);
+                if (response && response.user) {
+                    setUser(response.user);
+                    console.log("✅ Sesión verificada", response.user);
                 }
             } catch (error) {
-                console.error("❌ Error verificando sesión:", error);
+                console.error("Error verificando sesión:", error);
+                localStorage.removeItem("token");
             } finally {
-                console.log("🔄 Verificación de auth completada");
                 setLoading(false);
                 initialCheckDone.current = true;
             }
@@ -85,66 +44,38 @@ export function AuthProvider({ children }) {
         checkSession();
     }, []);
 
-    // Función de login usando Supabase
+    // Función de login
     const login = async (token, userData) => {
         try {
-            console.log("🔑 Login iniciado con token:", token ? "Presente" : "Ausente");
-
-            // Obtener rol desde Supabase
-            const email = userData.email;
-            const nit = email.split("@")[0];
-
-            // Primero verifica si es el administrador predefinido
-            if (email === "900900900@ejemplo.com") {
-                console.log("⭐ Usuario admin predefinido, asignando rol administrador");
-                return persistUserWithRole(userData, "administrador");
-            }
-
-            // Buscar en tabla personalizada
-            const { data: userProfile, error } = await supabase.from("usuarios").select("rol, nombre_empresa").eq("nit", nit).single();
-
-            if (error) {
-                console.error("❌ Error al obtener perfil:", error);
-                // Crear usuario cliente en la tabla personalizada
-                await checkAndCreateUser(userData, "cliente");
-                return persistUserWithRole(userData, "cliente");
-            } else {
-                console.log("✅ Perfil encontrado:", userProfile);
-                return persistUserWithRole(userData, userProfile.rol);
-            }
+            localStorage.setItem("token", token);
+            setUser(userData);
+            return true;
         } catch (error) {
-            console.error("❌ Error en login:", error);
-
-            // Si falla todo, asegurar un rol por defecto
-            if (userData.email === "900900900@ejemplo.com") {
-                return persistUserWithRole(userData, "administrador");
-            } else {
-                return persistUserWithRole(userData, "cliente");
-            }
+            console.error("Error en login:", error);
+            return false;
         }
     };
 
     // Función de logout
     const logout = async () => {
-        await supabase.auth.signOut();
-        setUser(null);
-        localStorage.removeItem("user_with_role");
+        try {
+            await authService.logout();
+            localStorage.removeItem("token");
+            setUser(null);
+            return true;
+        } catch (error) {
+            console.error("Error en logout:", error);
+            return false;
+        }
     };
 
-    return (
-        <AuthContext.Provider
-            value={{
-                user,
-                loading,
-                login,
-                logout,
-                isAuthenticated: !!user,
-                token: user?.access_token || localStorage.getItem("sb-token"),
-            }}
-        >
-            {children}
-        </AuthContext.Provider>
-    );
-}
+    const value = {
+        user,
+        loading,
+        login,
+        logout,
+        isAuthenticated: !!user,
+    };
 
-export const useAuth = () => useContext(AuthContext);
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

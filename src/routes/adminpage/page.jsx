@@ -9,7 +9,7 @@ import { PencilLine, Trash, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
 import { useResponsive } from "@/hooks/useResponsive";
-import { supabase } from "@/lib/supabase";
+import apiClient from "@/services/apiService";
 
 const AdminPage = () => {
     const { theme } = useTheme();
@@ -20,15 +20,16 @@ const AdminPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Cargar usuarios desde Supabase
+    // Cargar usuarios desde la API
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase.from("usuarios").select("*");
+            const response = await apiClient.get("/users");
 
-            if (error) {
-                console.error("Error al cargar usuarios:", error);
-                // Usar datos simulados en desarrollo
+            if (response.data && response.data.success) {
+                setUsers(response.data.data || []);
+            } else {
+                // Usar datos simulados en desarrollo para pruebas
                 const mockUsers = [
                     {
                         id_usuario: "1",
@@ -48,12 +49,23 @@ const AdminPage = () => {
                     },
                 ];
                 setUsers(mockUsers);
-            } else {
-                setUsers(data || []);
             }
         } catch (error) {
             console.error("Error al cargar usuarios:", error);
             toast.error("Error al cargar usuarios");
+
+            // Usar datos simulados en caso de error
+            const mockUsers = [
+                {
+                    id_usuario: "1",
+                    nombre_usuario: "Admin",
+                    email: "900900900@ejemplo.com",
+                    rol: "administrador",
+                    nit: "900900900",
+                    nombre_empresa: "ICC Ambiental",
+                },
+            ];
+            setUsers(mockUsers);
         } finally {
             setLoading(false);
         }
@@ -68,11 +80,14 @@ const AdminPage = () => {
         if (!confirm("¿Está seguro de eliminar este usuario?")) return;
 
         try {
-            const { error } = await supabase.from("usuarios").delete().eq("id_usuario", id);
+            const response = await apiClient.delete(`/users/${id}`);
 
-            if (error) throw error;
-            fetchUsers();
-            toast.success("Usuario eliminado correctamente");
+            if (response.data && response.data.success) {
+                fetchUsers();
+                toast.success("Usuario eliminado correctamente");
+            } else {
+                throw new Error(response.data?.message || "Error al eliminar usuario");
+            }
         } catch (error) {
             console.error("Error al eliminar usuario:", error);
             toast.error("Error al eliminar usuario");
@@ -85,21 +100,17 @@ const AdminPage = () => {
         setIsEditUserModalOpen(true);
     };
 
-    // Manejar la actualización del rol de un usuario
-    const handleUpdateUserRole = async (id, newRole) => {
+    // Manejar la actualización de un usuario
+    const handleUpdateUser = async (updatedUser) => {
         try {
-            const response = await fetch(`/api/users/${id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-                body: JSON.stringify({ role: newRole }),
-            });
-            if (response.ok) {
+            const response = await apiClient.put(`/users/${updatedUser.id_usuario}`, updatedUser);
+
+            if (response.data && response.data.success) {
                 fetchUsers();
                 setIsEditUserModalOpen(false);
                 toast.success("Usuario actualizado correctamente");
+            } else {
+                throw new Error(response.data?.message || "Error al actualizar usuario");
             }
         } catch (error) {
             console.error("Error al actualizar usuario:", error);
@@ -110,33 +121,15 @@ const AdminPage = () => {
     // Manejar la adición de un nuevo usuario
     const handleAddUser = async (userData) => {
         try {
-            // 1. Registrar el usuario en Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: `${userData.nit}@ejemplo.com`,
-                password: userData.contrasena,
-            });
+            const response = await apiClient.post("/users", userData);
 
-            if (authError) throw authError;
-
-            // 2. Agregar datos del usuario en la tabla usuarios
-            const { error } = await supabase.from("usuarios").insert([
-                {
-                    id_usuario: authData.user.id,
-                    nombre_usuario: userData.nombre_usuario,
-                    email: userData.email,
-                    rol: userData.rol,
-                    nombre_empresa: userData.nombre_empresa,
-                    contacto: userData.contacto,
-                    direccion: userData.direccion,
-                    nit: userData.nit,
-                },
-            ]);
-
-            if (error) throw error;
-
-            fetchUsers();
-            setIsAddUserModalOpen(false);
-            toast.success("Usuario agregado correctamente");
+            if (response.data && response.data.success) {
+                fetchUsers();
+                setIsAddUserModalOpen(false);
+                toast.success("Usuario agregado correctamente");
+            } else {
+                throw new Error(response.data?.message || "Error al agregar usuario");
+            }
         } catch (error) {
             console.error("Error al agregar usuario:", error);
             toast.error("Error al agregar usuario");

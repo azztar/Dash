@@ -5,7 +5,7 @@ export const databaseService = {
     // Estaciones
     getStationsByClient: async (clientId) => {
         try {
-            const response = await apiClient.get(`/api/stations?clientId=${clientId}`);
+            const response = await apiClient.get(`/stations?clientId=${clientId}`);
             return response.data;
         } catch (error) {
             console.error("Error obteniendo estaciones:", error);
@@ -16,7 +16,7 @@ export const databaseService = {
     // Mediciones
     uploadMeasurement: async (formData) => {
         try {
-            const response = await apiClient.post("/api/measurements/upload", formData, {
+            const response = await apiClient.post("/measurements/upload", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -31,7 +31,7 @@ export const databaseService = {
     // Declaraciones
     uploadDeclaration: async (formData) => {
         try {
-            const response = await apiClient.post("/api/declarations/upload", formData, {
+            const response = await apiClient.post("/declarations/upload", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
