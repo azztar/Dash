@@ -1,8 +1,16 @@
-# React + Vite
+# Dashboard ICC Ambiental
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema integral de gestión de mediciones ambientales desarrollado con React y Node.js.
 
-Currently, two official plugins are available:
+## Características
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Autenticación segura** con JWT y roles de usuario
+- **Dashboard interactivo** con gráficos en tiempo real
+- **Gestión de mediciones** de calidad del aire
+- **Upload de archivos** Excel para carga masiva de datos
+- **Reportes y exportación** de datos
+- **Integración con API del clima**
+- **Responsive design** con Tailwind CSS
+
+## Estructura del Proyecto
+"# iccambie" 
